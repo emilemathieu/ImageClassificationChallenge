@@ -22,4 +22,14 @@ image1 = image1.reshape((3, CHANEL_SIZE))
 image1 = image1.reshape((3, IMAGE_SIZE, IMAGE_SIZE))
 image1 = image1.swapaxes(0,1)
 image1 = image1.swapaxes(1,2)
-plt.imshow(image1)
+#plt.imshow(image1)
+
+def rgb2gray(im):
+    """
+    Convert image im to grayscale
+    """
+    im = np.dot(im[:,:,:3],[0.299, 0.587, 0.114])
+    return im
+
+im_gray = rgb2gray(image1)
+plt.imshow(im_gray, cmap=plt.get_cmap('gray'))
