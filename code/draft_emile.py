@@ -54,14 +54,15 @@ plt.imshow(X[0,:].reshape((32,32)), cmap='gray')
 
 #%% Learn and test classifiers
 
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import KFold
 
 N = len(Y)
 nb_splits = 10
 
-svc_clf = SVC()
+#svc_clf = SVC(kernel='poly')
+svc_clf = LinearSVC()
 dummy_clf = DummyClassifier()
 
 scores_SCV = np.zeros(nb_splits)
