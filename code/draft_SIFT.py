@@ -12,22 +12,10 @@ import matplotlib.pyplot as plt
 import doctest
 import math
 import scipy.ndimage.filters as filters
+from PIL import Image 
 
-
-X = pd.read_csv('../data/Xtr.csv', header=None)
-X = X.as_matrix()
-X = X[:, 0:-1]
-
-index = 100
-IMAGE_SIZE = 32
-CHANEL_SIZE = IMAGE_SIZE * IMAGE_SIZE
-image1 = X[index,:]
-image1 = image1.reshape((3, CHANEL_SIZE))
-image1 = image1.reshape((3, IMAGE_SIZE, IMAGE_SIZE))
-image1 = image1.swapaxes(0,1)
-image1 = image1.swapaxes(1,2)
-## Convert to gray scale
-image1 = np.dot(image1[:,:,:3],[0.299, 0.587, 0.114])
+## Open test image
+im_test = Image.open("test_sift.jpg")
 
 
 def L(I,sigma,k):
@@ -67,6 +55,10 @@ def D(I,sigma,s):
 	return DoG
  
 #DoG = D(image1,1,5)
+
+########## SIFT algorithm ############
+
+## 1st step: Generate the scale space
 
 
 
