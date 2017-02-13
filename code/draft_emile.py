@@ -57,6 +57,7 @@ plt.imshow(X[0,:].reshape((32,32)), cmap='gray')
 from sklearn.svm import SVC, LinearSVC
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import KFold
+import svm
 
 N = len(Y)
 nb_splits = 10
@@ -64,9 +65,11 @@ nb_splits = 10
 #svc_clf = SVC(kernel='poly')
 svc_clf = LinearSVC()
 dummy_clf = DummyClassifier()
+svc_custom_clf = svm.SVM(svm.linear_kernel())
 
 scores_SCV = np.zeros(nb_splits)
 scores_dummy = np.zeros(nb_splits)
+scores_custom = np.zeros(nb_splits)
 
 kf = KFold(n_splits=nb_splits, shuffle=True)
 
@@ -81,8 +84,12 @@ for i, (train, test) in enumerate(kf.split(range(N))):
     dummy_clf.fit(X_train, y_train)
     scores_dummy[i] = dummy_clf.score(X_test, y_test)
     
+    svc_custom_clf.fit(X_train, y_train)
+    scores_custom[i] = svc_custom_clf.score(X_test, y_test)
+    
 print("Score SVC: %s" % scores_SCV.mean())
 print("Score dummy: %s" %scores_dummy.mean())
+print("Score custom: %s" %scores_custom.mean())
 
 #%% Submission
 
