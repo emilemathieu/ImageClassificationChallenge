@@ -1,7 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import numpy as np
 import pandas as pd
+
+#%% Transform to greyscale function
+
+def rgb_to_greyscale(dataset):
+    #Y = 0.299 R + 0.587 G + 0.114 B 
+    columns_size = dataset.shape[1]
+    if (columns_size % 3 != 0):
+        raise ValueError('rgb_to_greyscale: column dimension must be a multiple of 3')
+    channel_size = int(columns_size / 3)
+    
+    r = dataset[:,0:channel_size]
+    g = dataset[:,channel_size:2*channel_size]
+    b = dataset[:,2*channel_size:3*channel_size]
+        
+    return 0.299*r + 0.587*g + 0.114*b
+
+#%% Load dataset
 
 IMAGE_SIZE = 32
 CHANEL_SIZE = IMAGE_SIZE * IMAGE_SIZE
@@ -14,80 +32,45 @@ Y_full = pd.read_csv('../data/Ytr.csv')
 Y_full = Y_full.as_matrix()
 Y_full = Y_full[:,1]
 
-#%% Transform to greyscale
-
-def rgb_to_greyscale(dataset):
-    #Y = 0.299 R + 0.587 G + 0.114 B 
-    columns_size = dataset.shape[1]
-    if (columns_size % 3 != 0):
-        raise ValueError('rgb_to_greyscale: column dimension must be a multiple of 3')
-    channel_size = columns_size / 3
-    
-    r = dataset[:,0:channel_size]
-    g = dataset[:,channel_size:2*channel_size]
-    b = dataset[:,2*channel_size:3*channel_size]
-        
-    return 0.299*r + 0.587*g + 0.114*b
-
-#%% Keep multiclass problem
 X_multi = rgb_to_greyscale(X_full)
 Y_multi = Y_full
+N = len(Y_multi)
 
-#%% Learn and test classifiers
+#%% Select classifiers
 
 from sklearn.svm import SVC, LinearSVC
 from sklearn.dummy import DummyClassifier
-from sklearn.model_selection import KFold
-from importlib import reload
 import svm
+from importlib import reload
 
-N = len(Y_multi)
-nb_splits = 2
+kernel = svm.linear_kernel()
 
-#svc_clf = SVC(kernel='poly')
-svc_clf = LinearSVC()
-dummy_clf = DummyClassifier()
-clf_multi_1vs1 = svm.multiclass_1vs1(svm.linear_kernel())
-#clf_multi_1vsall = svm.multiclass_1vsall(svm.linear_kernel())
-clf_multi_1vs1_smo = svm.multiclass_1vs1(svm.linear_kernel(), algo='smo')
+classifiers = {'OVO-QP': svm.multiclass_1vs1(kernel=kernel),
+               'OVO-SMO': svm.multiclass_1vs1(kernel=kernel, algo='smo'),
+               'sklearn': SVC(kernel='linear')}
 
-scores_A = np.zeros(nb_splits)
-scores_B = np.zeros(nb_splits)
-scores_C = np.zeros(nb_splits)
-scores_D = np.zeros(nb_splits)
+#%% Assess classifiers
 
-kf = KFold(n_splits=nb_splits, shuffle=True)
+import timeit
+from sklearn.model_selection import train_test_split
 
-for i, (train, test) in enumerate(kf.split(range(N))):
-    print(i)
-    X_train, X_test, y_train, y_test = X_multi[train], X_multi[test], Y_multi[train], Y_multi[test]
+scores = {classifier_name: 0 for classifier_name, classifier in classifiers.items()}
+times = {classifier_name: 0 for classifier_name, classifier in classifiers.items()}
+
+X_train, X_test, y_train, y_test = train_test_split(X_multi, Y_multi, test_size=0.33)
+
+for classifier_name, classifier in classifiers.items():
+    print("%s - fit" % classifier_name)
+    start = timeit.default_timer()
+    classifier.fit(X_train, y_train)
+    print("%s - predict\n" % classifier_name)
+    scores[classifier_name] = classifier.score(X_test, y_test)
+    times[classifier_name] = round(timeit.default_timer() - start, 2)
     
-    print("A - fit")
-    clf_multi_1vs1_smo.fit(X_train, y_train)
-    print("A - predict")
-    scores_A[i] = clf_multi_1vs1_smo.score(X_test, y_test)
-    print(scores_A[i])
-#    print("B - fit")
-#    clf_multi_1vs1.fit(X_train, y_train)
-#    print("B - predict")
-#    scores_B[i] = clf_multi_1vs1.score(X_test, y_test)
+print("\n%s -- score:%s | time:%s" % 
+          (classifier_name, scores[classifier_name].mean(), times[classifier_name]))
 
-    print("C - fit")
-    svc_clf.fit(X_train, y_train)
-    print("C - predict")
-    scores_C[i] = svc_clf.score(X_test, y_test)
-    print(scores_C[i])
-    
-    #print("D - fit")
-    #dummy_clf.fit(X_train, y_train)
-    #print("D - predict")
-    #scores_D[i] = dummy_clf.score(X_test, y_test)
-    
-print("Score A: %s" % scores_A.mean())
-#print("Score B: %s" %scores_B.mean())
-print("Score C: %s" %scores_C.mean())
-print("Score D: %s" %scores_D.mean())
-#%% Submission
+#%% SUBMISSION: Train on all dataset and predict evaluation
 
 clf = svm.multiclass_1vs1(svm.linear_kernel())
 
@@ -103,4 +86,5 @@ prediction = pd.DataFrame(prediction)
 prediction.reset_index(level=0, inplace=True)
 prediction.columns = ['Id', 'Prediction']
 prediction['Id'] = prediction['Id'] + 1
+prediction['Prediction'] = int(prediction['Prediction'])
 prediction.to_csv('../data/evaluation.csv', sep=',', header=True, index=False)
