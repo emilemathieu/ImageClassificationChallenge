@@ -18,43 +18,6 @@ from PIL import Image
 im_test = Image.open("../data/test_sift.jpg")
 im_test = np.array(im_test)
 
-
-def L(I,sigma,k):
-	"""
-	Compute the convolution of an image by a Gaussian function
-	Parameters:
-		I 		: grayscale image
-		sigma 	: variance of the gaussian kernel
-		k 		: scale factor
-	Outputs:
-		L : Smoothed image
-	"""
-	L = filters.gaussian_filter(I, k * sigma)
-	return L
-
-def D(I,sigma,s):
-	"""
-	Compute the difference of Gaussians over an Octave
-	Parameters:
-		I 		: grayscale image
-		sigma 	: variance of the gaussian kernel
-		k 		: scale factor
-	Outputs:
-		D : Smoothed image
-	"""
-	## Compute the DoG of an Octave
-	k = 2 ** (1./s)
-	octave = np.ones((I.shape[0],I.shape[1],s+3))
-	DoG = np.ones((I.shape[0],I.shape[1],s+2))
-	for i in range(s+3):
-		octave[:,:,i] = L(I,sigma,k)
-		plt.figure()
-		plt.imshow(octave[:,:,i], cmap= plt.get_cmap('gray'))
-		k *= k
-	for i in range(s+2):
-		DoG[:,:,i] = octave[:,:,i+1] - octave[:,:,i]
-	return DoG
-
 ########## SIFT algorithm ############
 
 ## 1st step: Constructing a scale space
@@ -100,22 +63,39 @@ octave3 = build_octave(image_resample2, nb_levels, k, sigma)
 image_resample3 = resample2(image_resample2)
 octave4 = build_octave(image_resample3, nb_levels, k, sigma)
 
-for i in range(nb_levels):
-	plt.figure()
-	plt.imshow(octave1[:,:,i],cmap='gray')
-	plt.title('octave1')
-for i in range(nb_levels):
-	plt.figure()
-	plt.imshow(octave2[:,:,i],cmap='gray')
-	plt.title('octave2')
-for i in range(nb_levels):
-	plt.figure()
-	plt.imshow(octave3[:,:,i],cmap='gray')
-	plt.title('octave3')
-for i in range(nb_levels):
-	plt.figure()
-	plt.imshow(octave4[:,:,i],cmap='gray')
-	plt.title('octave4')
+# for i in range(nb_levels):
+# 	plt.figure()
+# 	plt.imshow(octave1[:,:,i],cmap='gray')
+# 	plt.title('octave1')
+# for i in range(nb_levels):
+# 	plt.figure()
+# 	plt.imshow(octave2[:,:,i],cmap='gray')
+# 	plt.title('octave2')
+# for i in range(nb_levels):
+# 	plt.figure()
+# 	plt.imshow(octave3[:,:,i],cmap='gray')
+# 	plt.title('octave3')
+# for i in range(nb_levels):
+# 	plt.figure()
+# 	plt.imshow(octave4[:,:,i],cmap='gray')
+# 	plt.title('octave4')
+
+## 2nd step: Difference of Gaussians
+
+def log_approx(octave):
+	nb_levels = int(octave.shape[2])
+	DOG = np.ones((octave.shape[0],octave.shape[1],octave.shape[2]-1))
+	for i in range(nb_levels - 1):
+		print('i {}'.format(i))
+		DOG[:,:,i] = octave[:,:,i] - octave[:,:,i + 1]
+	return DOG
+
+DOG1 = log_approx(octave1)
+DOG2 = log_approx(octave2)
+DOG3 = log_approx(octave3)
+DOG4 = log_approx(octave4)
+
+
 
 
 
