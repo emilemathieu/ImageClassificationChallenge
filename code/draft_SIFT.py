@@ -29,6 +29,8 @@ sigma = 1. / math.sqrt(2)
 def rgb2gray(im):
     """
     Convert image im to grayscale
+    Parameters:
+    	im: RGB image as numpy array
     """
     im = np.dot(im[:,:,:3],[0.299, 0.587, 0.114])
     return im
@@ -38,12 +40,25 @@ plt.figure()
 plt.imshow(image,cmap='gray')
 
 def build_octave(image,nb_levels,k,sigma):
+	"""
+	Generate an octave of the image
+	Parameters:
+		image: image in grayscale as numpy array
+		nb_levels: number of scale levels in the octave
+		k: blur ratio between scales
+		sigma: variance of the gaussian blur
+	"""
 	octave = np.ones((image.shape[0],image.shape[1],nb_levels))
 	for i in range(nb_levels):
 		octave[:,:,i] = filters.gaussian_filter(image, (1+i) * k * sigma)
 	return octave
 
 def resample2(image):
+	"""
+	Resample an array by taking every second value
+	Parameters:
+		image: image in grayscale as numpy array
+	"""
 	[h,w] = [image.shape[0], image.shape[1]]
 	im_resample = np.ones((int(math.ceil(h/2)),int(math.ceil(w/2))))
 	count_i = 0
@@ -55,48 +70,28 @@ def resample2(image):
 		count_i +=1
 	return im_resample
 
-octave1 = build_octave(image, nb_levels, k, sigma)
-image_resample1 = resample2(image)
-octave2 = build_octave(image_resample1, nb_levels, k, sigma)
-image_resample2 = resample2(image_resample1)
-octave3 = build_octave(image_resample2, nb_levels, k, sigma)
-image_resample3 = resample2(image_resample2)
-octave4 = build_octave(image_resample3, nb_levels, k, sigma)
-
-# for i in range(nb_levels):
-# 	plt.figure()
-# 	plt.imshow(octave1[:,:,i],cmap='gray')
-# 	plt.title('octave1')
-# for i in range(nb_levels):
-# 	plt.figure()
-# 	plt.imshow(octave2[:,:,i],cmap='gray')
-# 	plt.title('octave2')
-# for i in range(nb_levels):
-# 	plt.figure()
-# 	plt.imshow(octave3[:,:,i],cmap='gray')
-# 	plt.title('octave3')
-# for i in range(nb_levels):
-# 	plt.figure()
-# 	plt.imshow(octave4[:,:,i],cmap='gray')
-# 	plt.title('octave4')
-
 ## 2nd step: Difference of Gaussians
 
 def log_approx(octave):
+	"""
+	Compute the Difference of Gaussian images as an approximation of the image Laplacian
+	Parameters:
+		octave: an octave of the grayscale image
+	"""
 	nb_levels = int(octave.shape[2])
 	DOG = np.ones((octave.shape[0],octave.shape[1],octave.shape[2]-1))
 	for i in range(nb_levels - 1):
 		DOG[:,:,i] = octave[:,:,i] - octave[:,:,i + 1]
 	return DOG
 
-DOG1 = log_approx(octave1)
-DOG2 = log_approx(octave2)
-DOG3 = log_approx(octave3)
-DOG4 = log_approx(octave4)
-
 ## 3d step: Extrema detection
 
 def extrema_map(DOG):
+	"""
+	Compute the extrema in scale neighborhood of the image Laplacian
+	Parameters:
+		DoG: images of the image Laplacian log approximation
+	"""
 	extrema_map = np.zeros((DOG.shape[0], DOG.shape[1], DOG.shape[2] - 2))
 	for k in range(1, int(DOG.shape[2])-1):
 		extrema = np.zeros((DOG.shape[0], DOG.shape[1]))
