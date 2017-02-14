@@ -13,17 +13,6 @@ X_full = X_full[:, 0:-1]
 Y_full = pd.read_csv('../data/Ytr.csv')
 Y_full = Y_full.as_matrix()
 Y_full = Y_full[:,1]
-#%% Transform to binary classification problem
-
-class_0_indices = Y_full == 0
-class_1_indices = Y_full == 1
-class_0_1_indices = class_0_indices + class_1_indices
-del class_0_indices,class_1_indices 
-
-X = X_full[class_0_1_indices, :]
-Y = Y_full[class_0_1_indices]
-Y[Y== 0] = -1
-del class_0_1_indices
 
 #%% Transform to greyscale
 
@@ -40,68 +29,78 @@ def rgb_to_greyscale(dataset):
         
     return 0.299*r + 0.587*g + 0.114*b
 
-X = rgb_to_greyscale(X)
-
-import matplotlib.pyplot as plt
-plt.imshow(X[0,:].reshape((32,32)), cmap='gray')
-
-#%% Simple dataset
-
-#from sklearn import datasets
-#iris = datasets.load_iris()
-#X = iris.data
-#Y = iris.target
+#%% Keep multiclass problem
+X_multi = rgb_to_greyscale(X_full)
+Y_multi = Y_full
 
 #%% Learn and test classifiers
 
 from sklearn.svm import SVC, LinearSVC
 from sklearn.dummy import DummyClassifier
 from sklearn.model_selection import KFold
+from importlib import reload
 import svm
 
-N = len(Y)
-nb_splits = 10
+N = len(Y_multi)
+nb_splits = 2
 
 #svc_clf = SVC(kernel='poly')
 svc_clf = LinearSVC()
 dummy_clf = DummyClassifier()
-svc_custom_clf = svm.SVM(svm.linear_kernel())
+clf_multi_1vs1 = svm.multiclass_1vs1(svm.linear_kernel())
+#clf_multi_1vsall = svm.multiclass_1vsall(svm.linear_kernel())
+clf_multi_1vs1_smo = svm.multiclass_1vs1(svm.linear_kernel(), algo='smo')
 
-scores_SCV = np.zeros(nb_splits)
-scores_dummy = np.zeros(nb_splits)
-scores_custom = np.zeros(nb_splits)
+scores_A = np.zeros(nb_splits)
+scores_B = np.zeros(nb_splits)
+scores_C = np.zeros(nb_splits)
+scores_D = np.zeros(nb_splits)
 
 kf = KFold(n_splits=nb_splits, shuffle=True)
 
 for i, (train, test) in enumerate(kf.split(range(N))):
     print(i)
-    #print("%s %s" % (train, test))
-    X_train, X_test, y_train, y_test = X[train], X[test], Y[train], Y[test]
+    X_train, X_test, y_train, y_test = X_multi[train], X_multi[test], Y_multi[train], Y_multi[test]
     
-    svc_clf.fit(X_train, y_train)
-    scores_SCV[i] = svc_clf.score(X_test, y_test)
-    
-    dummy_clf.fit(X_train, y_train)
-    scores_dummy[i] = dummy_clf.score(X_test, y_test)
-    
-    svc_custom_clf.fit(X_train, y_train)
-    scores_custom[i] = svc_custom_clf.score(X_test, y_test)
-    
-print("Score SVC: %s" % scores_SCV.mean())
-print("Score dummy: %s" %scores_dummy.mean())
-print("Score custom: %s" %scores_custom.mean())
+    print("A - fit")
+    clf_multi_1vs1_smo.fit(X_train, y_train)
+    print("A - predict")
+    scores_A[i] = clf_multi_1vs1_smo.score(X_test, y_test)
+    print(scores_A[i])
+#    print("B - fit")
+#    clf_multi_1vs1.fit(X_train, y_train)
+#    print("B - predict")
+#    scores_B[i] = clf_multi_1vs1.score(X_test, y_test)
 
+    print("C - fit")
+    svc_clf.fit(X_train, y_train)
+    print("C - predict")
+    scores_C[i] = svc_clf.score(X_test, y_test)
+    print(scores_C[i])
+    
+    #print("D - fit")
+    #dummy_clf.fit(X_train, y_train)
+    #print("D - predict")
+    #scores_D[i] = dummy_clf.score(X_test, y_test)
+    
+print("Score A: %s" % scores_A.mean())
+#print("Score B: %s" %scores_B.mean())
+print("Score C: %s" %scores_C.mean())
+print("Score D: %s" %scores_D.mean())
 #%% Submission
 
-clf = dummy_clf
+clf = svm.multiclass_1vs1(svm.linear_kernel())
+
+clf.fit(X_multi, Y_multi)
 
 X_e = pd.read_csv('../data/Xte.csv', header=None)
 X_e = X_e.as_matrix()
 X_e = X_e[:, 0:-1]
 X_e = rgb_to_greyscale(X_e)
 
-prediction = dummy_clf.predict(X_e)
+prediction = clf.predict(X_e)
 prediction = pd.DataFrame(prediction)
 prediction.reset_index(level=0, inplace=True)
 prediction.columns = ['Id', 'Prediction']
+prediction['Id'] = prediction['Id'] + 1
 prediction.to_csv('../data/evaluation.csv', sep=',', header=True, index=False)
