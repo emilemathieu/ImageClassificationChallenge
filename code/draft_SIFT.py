@@ -86,7 +86,6 @@ def log_approx(octave):
 	nb_levels = int(octave.shape[2])
 	DOG = np.ones((octave.shape[0],octave.shape[1],octave.shape[2]-1))
 	for i in range(nb_levels - 1):
-		print('i {}'.format(i))
 		DOG[:,:,i] = octave[:,:,i] - octave[:,:,i + 1]
 	return DOG
 
@@ -94,6 +93,32 @@ DOG1 = log_approx(octave1)
 DOG2 = log_approx(octave2)
 DOG3 = log_approx(octave3)
 DOG4 = log_approx(octave4)
+
+## 3d step: Extrema detection
+
+def extrema_map(DOG):
+	extrema_map = np.zeros((DOG.shape[0], DOG.shape[1], DOG.shape[2] - 2))
+	for k in range(1, int(DOG.shape[2])-1):
+		extrema = np.zeros((DOG.shape[0], DOG.shape[1]))
+		for i in range(1, int(DOG.shape[0]) - 1):
+			for j in range(1, int(DOG.shape[1]) - 1):
+				neighborhood_upscale = DOG[i-1:i+2, j-1:j+2, k-1].flatten()
+				neighborhood = DOG[i-1:i+2, j-1:j+2, k].flatten()
+				neighborhood_downscale = DOG[i-1:i+2, j-1:j+2, k+1].flatten()
+				N = np.concatenate((neighborhood_upscale, neighborhood), axis=0)
+				N = np.concatenate((N, neighborhood_downscale), axis=0)
+				sample = DOG[i,j,k]
+				if(sample == np.max(N)):
+					extrema[i,j] = 1
+				elif(sample == np.min(N)):
+					extrema[i,j] = 1
+		extrema_map[:,:,k-1] = extrema
+	return extrema_map
+
+
+
+
+
 
 
 
