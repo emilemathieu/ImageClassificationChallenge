@@ -45,8 +45,9 @@ from importlib import reload
 
 kernel = svm.linear_kernel()
 
-classifiers = {'OVO-QP': svm.multiclass_1vs1(kernel=kernel),
-               'OVO-SMO': svm.multiclass_1vs1(kernel=kernel, algo='smo'),
+classifiers = {#'OVO-QP': svm.multiclass_1vs1(kernel=kernel),
+               'OVO-SMO': svm.multiclass_ovo(kernel=kernel, algo='smo'),
+               'OVA-SMO': svm.multiclass_ova(kernel=kernel, algo='smo'),
                'sklearn': SVC(kernel='linear')}
 
 #%% Assess classifiers
@@ -66,13 +67,14 @@ for classifier_name, classifier in classifiers.items():
     print("%s - predict\n" % classifier_name)
     scores[classifier_name] = classifier.score(X_test, y_test)
     times[classifier_name] = round(timeit.default_timer() - start, 2)
-    
-print("\n%s -- score:%s | time:%s" % 
+
+for classifier_name in classifiers:    
+    print("\n%s -- score:%s | time:%s" % 
           (classifier_name, scores[classifier_name].mean(), times[classifier_name]))
 
 #%% SUBMISSION: Train on all dataset and predict evaluation
 
-clf = svm.multiclass_1vs1(svm.linear_kernel())
+clf = svm.multiclass_ovo(svm.linear_kernel(), algo='smo')
 
 clf.fit(X_multi, Y_multi)
 
@@ -86,5 +88,5 @@ prediction = pd.DataFrame(prediction)
 prediction.reset_index(level=0, inplace=True)
 prediction.columns = ['Id', 'Prediction']
 prediction['Id'] = prediction['Id'] + 1
-prediction['Prediction'] = int(prediction['Prediction'])
+prediction['Prediction'] = prediction['Prediction'].astype(int)
 prediction.to_csv('../data/evaluation.csv', sep=',', header=True, index=False)
