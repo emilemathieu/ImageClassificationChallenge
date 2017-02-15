@@ -164,6 +164,55 @@ def rm_edges(DOG, Emap, threshold):
 		Emap[:,:,i] = extrema
 	return Emap
 
+## 5th step: Assign orientations
+
+def assign_orientation(L,Emap,sigma):
+	"""
+	Assign orientation and magnitude to each keypoint
+	Parameters:
+		L: Gaussian blured image
+		Emap: extremas of the lagrangian
+	"""
+	keypoints = np.zeros((1,5)) ## location, scale, orientation, magnitude
+	for i in range(int(Emap.shape[2])):
+		extrema = Emap[:,:,i]
+		L_image = L[:,:,i+1]
+		for k in range(int(extrema.shape[0])):
+			for l in range(int(extrema.shape[1])):
+				if(extrema[k,l] == 1): ## Keypoint
+					## Compute magnitude and orientation for all pixels of a 3x3 neighborhood
+					N = L_image[k-1:k+2,l-1:l+2]
+					M = np.zeros((3,3))
+					Theta = np.zeros((3,3))
+					for mi in range(3):
+						for mj in range(3):
+							M[mi, mj] = math.sqrt( (L_image[mi+1, mj] - L_image[mi-1,mj])**2 + (L_image[mi, mj+1] - L_image[mi, mj-1])**2 )
+							Theta[mi, mj] = math.degrees(math.atan( (L_image[mi, mj+1] - L_image[mi, mj-1])/(L_image[mi+1, mj] - L_image[mi-1, mj])) )
+					## Blur the magnitude matrix
+					M = filters.gaussian_filter(M, 1.5 * sigma)
+					## Build a histogram
+					H = np.zeros((36,1))
+					M = M.flatten()
+					Theta = Theta.flatten()
+					for mi in range(36):
+						bin = math.floor(Theta[mi] / 10) ## between 0 and 35
+						H[bin] = Theta[mi] * M[mi]
+					## Define the orientation of the keypoint
+					keypoint_orientation = np.argmax(H)
+					keypoint_magnitude = np.max(H)
+					key = [k,l,(i+1) * sigma, keypoint_orientation, keypoint_magnitude]
+					keypoints = np.concatenate((keypoints, key), axis=1)
+					## Check if another orientation is above 80% of the maximum
+					for mi in range(36):
+						if(H[mi] > 0.8 * np.max(H)):
+							if(mi != np.argmax(H)):
+								keypoint_orientation = mi
+								keypoint_magnitude = H[mi]
+								key = [k,l,(i+1) * sigma, keypoint_orientation, keypoint_magnitude]
+								keypoints = np.concatenate((keypoints, key), axis=1)
+	return keypoints
+
+
 
 
 
