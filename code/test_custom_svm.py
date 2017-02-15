@@ -20,11 +20,19 @@ Y_bin = Y_bin.as_matrix()
 Y_bin = Y_bin[:,0]
 
 #%% Load small multiclass dataset
+X_mul = pd.read_csv('../data/X_small_50.csv', header=None)
+X_mul = X_mul.as_matrix()
+
+Y_mul = pd.read_csv('../data/Y_small_50.csv', header=None)
+Y_mul = Y_mul.as_matrix()
+Y_mul = Y_mul[:,0]
 
 #%% Select problem: binary or multiclass ?
 
-X = X_bin
-y = Y_bin
+#X = X_bin
+#y = Y_bin
+X = X_mul
+y = Y_mul
 
 #%% Select classifiers
 from sklearn.svm import SVC, LinearSVC
@@ -34,13 +42,13 @@ from importlib import reload
 #kernel = svm.rbf_kernel(0.5)
 kernel = svm.linear_kernel()
 
-#classifiers = {'OVO': svm.multiclass_1vs1(kernel=kernel, algo='smo'),
-#               'OVA': svm.multiclass_1vsall(kernel=kernel, algo='smo'),
-#               'klearn': SVC(kernel='linear')}
+classifiers = {'OVO': svm.multiclass_ovo(kernel=kernel, algo='smo'),
+               'OVA': svm.multiclass_ova(kernel=kernel, algo='smo'),
+               'klearn': SVC(kernel='linear')}
 
-classifiers = {'OVO': svm.binary_classification_SMO(kernel=kernel),
-               'OVA': svm.binary_classification_SMO(kernel=kernel),
-               'sklearn': SVC(kernel='linear')}
+#classifiers = {'smo': svm.binary_classification_smo(kernel=kernel),
+#               'qp': svm.binary_classification_qp(kernel=kernel),
+#               'sklearn': SVC(kernel='linear')}
 
 #%% Assess classifiers with KFold
 
@@ -48,7 +56,7 @@ import timeit
 from sklearn.model_selection import KFold
 
 N = len(y)
-nb_splits = 5
+nb_splits = 2
 kf = KFold(n_splits=nb_splits, shuffle=True)
 
 scores = {classifier_name: np.zeros(nb_splits) for classifier_name, classifier in classifiers.items()}
