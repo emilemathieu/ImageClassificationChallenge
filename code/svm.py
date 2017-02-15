@@ -11,8 +11,11 @@ Created on Mon Feb 13 11:33:30 2017
 import cvxopt
 import numpy as np
 from functools import lru_cache
-MIN_SUPPORT_VECTOR_VALUE = 1e-3
+from collections import Counter
+import itertools
+from scipy.stats import mode
 
+MIN_SUPPORT_VECTOR_VALUE = 1e-3
 
 def linear_kernel():
         def f(x, y):
@@ -25,33 +28,105 @@ def rbf_kernel(sigma):
             return np.exp(exponent)
         return f
 
-class binary_classification_SMO(object):
-    def __init__(self, kernel, C=1.0, epsilon=1e-3):
+class Base_binary_classification(object):
+    """Linear Support Vector Classification.
+    
+        Parameters
+        ----------
+        C : float, optional (default=1.0)
+            Penalty parameter C of the error term.
+        
+        kernel : callable, (R^d,R^d) -> R
+            kernel function
+    """
+    def __init__(self, kernel, C=1.0):
         self._kernel = kernel
         self._C = C
-        self._epsilon = epsilon
         self._support_vectors = []
         self._support_vector_labels = []
         self._weights = []
         self._bias = 0.0          
 
     def fit(self, X, y):
+        """
+        Learn parameters of the model
+        """
         lagrange_multipliers = self._compute_weights(X, y)
         support_vector_indices = lagrange_multipliers > MIN_SUPPORT_VECTOR_VALUE
+        
         self._weights = lagrange_multipliers[support_vector_indices]
         self._support_vectors = X[support_vector_indices]
         self._support_vector_labels = y[support_vector_indices]
         
         bias = np.mean(self._support_vector_labels - self.predict(self._support_vectors))
         self._bias = bias
+
+    def _compute_weights(self, X, y):
+        raise NotImplementedError()
+        
+#    def _compute_kernel_support_vectors(self, X):
+#        res = np.zeros((X.shape[0], self._support_vectors.shape[0]))
+#        for i,x_i in enumerate(X):
+#            for j,x_j in enumerate(self._support_vectors):
+#                res[i, j] = self._kernel(x_i, x_j)
+#        return res
+
+    def predict(self, X):
+##        n_samples = X.shape[0]
+##        prediction = np.zeros(n_samples)
+##        bias = self._bias
+##        weights_times_labels = np.matrix(self._weights * self._support_vector_labels)
+##        res1 = self._compute_kernel_support_vectors(X)
+##        prod = np.multiply(res1,weights_times_labels)
+##        prediction=bias+np.sum(prod,1)
+##        return np.squeeze(np.asarray(prediction))
+        n_samples = X.shape[0]
+        prediction = np.zeros(n_samples)
+        for i, x in enumerate(X):
+            result = self._bias
+            for z_i, x_i, y_i in zip(self._weights,
+                                     self._support_vectors,
+                                     self._support_vector_labels):
+                result += z_i * y_i * self._kernel(x_i, x)
+            prediction[i] = np.sign(result).item()
+        return prediction
     
-    #@lru_cache()
+    def predict_value(self, X):
+        n_samples = X.shape[0]
+        prediction = np.zeros(n_samples)
+        for i, x in enumerate(X):
+            result = self._bias
+            for z_i, x_i, y_i in zip(self._weights,
+                                     self._support_vectors,
+                                     self._support_vector_labels):
+                result += z_i * y_i * self._kernel(x_i, x)
+            prediction[i] = result
+        return prediction
+
+    def score(self, X, y):
+        """
+        Computes average score for the given features X and labels y.
+        """
+        prediction = self.predict(X)
+        scores = prediction == y
+        return sum(scores) / len(scores)
+
+class binary_classification_smo(Base_binary_classification):
+    def __init__(self, kernel, C=1.0, epsilon=1e-3):
+        super().__init__(kernel, C=1.0)
+        self._epsilon = epsilon
+        
+        #@lru_cache()
     def _compute_kernel_matrix_row(self, X, index):
+        if index in self._cache_kernels:
+            return self._cache_kernels[index]
         n_samples, n_features = X.shape
         row = np.zeros(n_samples)
         x_i = X[index, :]
         for j,x_j in enumerate(X):
             row[j] = self._kernel(x_i, x_j)
+        if (self._len_cache_kernels < 100):
+            self._cache_kernels[index] = row
         return row
    
     def _compute_kernel_matrix_diag(self, X):
@@ -61,13 +136,10 @@ class binary_classification_SMO(object):
             diag[j] = self._kernel(x_j, x_j)
         return diag
     
-    def _compute_kernel_support_vectors(self, X):
-        res = np.zeros((X.shape[0], self._support_vectors.shape[0]))
-        for i,x_i in enumerate(X):
-            for j,x_j in enumerate(self._support_vectors):
-                res[i, j] = self._kernel(x_i, x_j)
-        return res
-    
+    def _reset_cache_kernels(self):
+        self._cache_kernels = {}
+        self._len_cache_kernels = 0
+        
     def _compute_weights(self, X, y):
         iteration = 0
         n_samples = X.shape[0]
@@ -75,7 +147,7 @@ class binary_classification_SMO(object):
         alpha = np.zeros(n_samples)
         g = np.ones(n_samples)
         diag = self._compute_kernel_matrix_diag(X)
-
+        self._reset_cache_kernels()
         while stop_criterion:
             #print(iteration)
             yg = g * y
@@ -107,7 +179,7 @@ class binary_classification_SMO(object):
             Kj = self._compute_kernel_matrix_row(X, j)
 
             stop_criterion = not (yg_i[i] - yg_j[j] < self._epsilon)
-            if (not stop_criterion) or iteration > 499:
+            if (not stop_criterion) or iteration > 999:
                 break
             
             #compute lambda
@@ -122,83 +194,18 @@ class binary_classification_SMO(object):
             alpha[j] = alpha[j] - y[j] * lambda_param
             
             iteration += 1
+            #list_kernel_called.append(i)
+            #list_kernel_called.append(j)
         print(iteration)
+        self._reset_cache_kernels()
+        #print(Counter(list_kernel_called))
         #print(self._compute_kernel_matrix_row.cache_info())
         return alpha
-
-    def predict(self, X):
-#        n_samples = X.shape[0]
-#        prediction = np.zeros(n_samples)
-#        bias = self._bias
-#        weights_times_labels = np.matrix(self._weights * self._support_vector_labels)
-#        res1 = self._compute_kernel_support_vectors(X)
-#        prod = np.multiply(res1,weights_times_labels)
-#        prediction=bias+np.sum(prod,1)
-#        return np.squeeze(np.asarray(prediction))
-        n_samples = X.shape[0]
-        prediction = np.zeros(n_samples)
-        for i, x in enumerate(X):
-            result = self._bias
-            for z_i, x_i, y_i in zip(self._weights,
-                                     self._support_vectors,
-                                     self._support_vector_labels):
-                result += z_i * y_i * self._kernel(x_i, x)
-            prediction[i] = np.sign(result).item()
-        return prediction
     
-    def predict_value(self, X):
-        n_samples = X.shape[0]
-        prediction = np.zeros(n_samples)
-        for i, x in enumerate(X):
-            result = self._bias
-            for z_i, x_i, y_i in zip(self._weights,
-                                     self._support_vectors,
-                                     self._support_vector_labels):
-                result += z_i * y_i * self._kernel(x_i, x)
-            prediction[i] = result
-        return prediction
-
-    def score(self, X, y):
-        prediction = self.predict(X)
-        scores = prediction == y
-        return sum(scores) / len(scores)
-
-class binary_classification(object):
-    """Linear Support Vector Classification.
-    
-        Parameters
-        ----------
-        C : float, optional (default=1.0)
-            Penalty parameter C of the error term.
-        
-        kernel : callable, (R^d,R^d) -> R
-            kernel function
-    """
-
+class binary_classification_qp(Base_binary_classification):
     def __init__(self, kernel, C=1.0):
-        self._kernel = kernel
-        self._C = C
-        self._support_vectors = []
-        self._support_vector_labels = []
-        self._weights = []
-        self._bias = 0.0          
-
-    def fit(self, X, y):
-        """
-        Learn parameters of the model
-        """
-        lagrange_multipliers = self._compute_weights( X, y)
+        super().__init__(kernel, C=1.0)
         
-        support_vector_indices = lagrange_multipliers > MIN_SUPPORT_VECTOR_VALUE
-            
-        self._weights = lagrange_multipliers[support_vector_indices]
-        #print(self._weights)
-        self._support_vectors = X[support_vector_indices]
-        self._support_vector_labels = y[support_vector_indices]
-        
-        bias = np.mean(self._support_vector_labels - self.predict(self._support_vectors))
-        self._bias = bias
-
     def _gram_matrix(self, X):
         n_samples, n_features = X.shape
         K = np.zeros((n_samples, n_samples))
@@ -229,61 +236,39 @@ class binary_classification(object):
         sol = cvxopt.solvers.qp(P, q, G, h, A, b)
         return np.ravel(sol['x'])
 
-    def predict(self, X):
-        n_samples = X.shape[0]
-        prediction = np.zeros(n_samples)
-        for i, x in enumerate(X):
-            result = self._bias
-            for z_i, x_i, y_i in zip(self._weights,
-                                     self._support_vectors,
-                                     self._support_vector_labels):
-                result += z_i * y_i * self._kernel(x_i, x)
-            prediction[i] = np.sign(result).item()
-        return prediction
-    
-    def predict_value(self, X):
-        n_samples = X.shape[0]
-        prediction = np.zeros(n_samples)
-        for i, x in enumerate(X):
-            result = self._bias
-            for z_i, x_i, y_i in zip(self._weights,
-                                     self._support_vectors,
-                                     self._support_vector_labels):
-                result += z_i * y_i * self._kernel(x_i, x)
-            prediction[i] = result
-        return prediction
-
-    def score(self, X, y):
-        """
-        Computes average score for the given features X and labels y.
-        """
-        prediction = self.predict(X)
-        scores = prediction == y
-        return sum(scores) / len(scores)
-    
-
-import itertools
-from scipy.stats import mode
-
-class multiclass_1vs1(object):
+class Base_multiclass(object):
     def __init__(self, kernel, C=1.0, algo='qp'):
         self._algo = algo
         self._kernel = kernel
         self._C = C
         self._classifiers = []
-        #np.random.seed()
+    
+    def fit(self, X, y):
+        raise NotImplementedError()
+        
+    def predict(self, X):
+        raise NotImplementedError()
+        
+    def score(self, X, y):
+        prediction = self.predict(X)
+        scores = prediction == y
+        return sum(scores) / len(scores)
+
+class multiclass_ovo(Base_multiclass):
+    def __init__(self, kernel, C=1.0, algo='qp'):
+        super().__init__(kernel, C=1.0, algo='qp')
 
     def fit(self, X, y):
         self._classes = set(y)
         self._pairs = list(itertools.combinations(self._classes, 2))
         self._nb_pairs = len(self._pairs)
-        classifiers = np.empty( self._nb_pairs, dtype=object)
+        classifiers = np.empty(self._nb_pairs, dtype=object)
         for i,pair_of_labels in enumerate(self._pairs):
             print(pair_of_labels)
             if self._algo == 'smo':
-                SVM_binary = binary_classification_SMO(kernel=self._kernel, C=1.0)
+                SVM_binary = binary_classification_smo(kernel=self._kernel, C=1.0)
             else:
-                SVM_binary = binary_classification(kernel=self._kernel, C=1.0)
+                SVM_binary = binary_classification_qp(kernel=self._kernel, C=1.0)
             X_filtered, y_filtered = self._filter_dataset_by_labels(X, y, pair_of_labels)
             SVM_binary.fit(X_filtered, y_filtered)
             classifiers[i] = SVM_binary
@@ -318,30 +303,23 @@ class multiclass_1vs1(object):
         print(prediction)
         return prediction
 
-    def score(self, X, y):
-        prediction = self.predict(X)
-        scores = prediction == y
-        return sum(scores) / len(scores)
-
-class multiclass_1vsall(object):
+class multiclass_ova(Base_multiclass):
     def __init__(self, kernel, C=1.0, algo='qp'):
-        self._algo = algo
-        self._kernel = kernel
-        self._C = C
-        self._classifiers = []
+        super().__init__(kernel, C=1.0, algo='qp')
 
     def fit(self, X, y):
         self._classes = set(y)
-
-        for label in self._classes:
+        classifiers = np.empty(len(self._classes), dtype=object)
+        for i, label in enumerate(self._classes):
             print(label)
             if self._algo == 'smo':
-                SVM_binary = binary_classification_SMO(kernel=self._kernel, C=1.0)
+                SVM_binary = binary_classification_smo(kernel=self._kernel, C=1.0)
             else:
-                SVM_binary = binary_classification(kernel=self._kernel, C=1.0)
+                SVM_binary = binary_classification_qp(kernel=self._kernel, C=1.0)
             X_filtered, y_filtered = self._filter_dataset_by_labels(X, y, label)
             SVM_binary.fit(X_filtered, y_filtered)
-            self._classifiers.append(SVM_binary)
+            classifiers[i] = SVM_binary
+        self._classifiers = classifiers
 
     def _filter_dataset_by_labels(self, X, y, label):
         class_pos_indices = (y == label)
@@ -359,8 +337,3 @@ class multiclass_1vsall(object):
             print(i)
             predicted_scores[:,i] = self._classifiers[i].predict_value(X)
         return np.argmax(predicted_scores, axis=1)
-
-    def score(self, X, y):
-        prediction = self.predict(X)
-        scores = prediction == y
-        return sum(scores) / len(scores)
