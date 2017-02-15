@@ -110,6 +110,61 @@ def extrema_map(DOG):
 		extrema_map[:,:,k-1] = extrema
 	return extrema_map
 
+# Optional Taylor expansion for subpixel value
+
+## 4th step: Remove bad keypoints
+
+def rm_low_constrast(DOG, Emap, threshold):
+	"""
+	Remove the keypoints with low constrast features
+	Parameters:
+		DOG: images of the image laplacian log approximation
+		Emap: extrema map of the image laplacian
+		threshold: intensity threshold for the DOG image
+	"""
+	for i in range(int(Emap.shape[2])):
+		extrema = Emap[:,:,i]
+		DOG_image = DOG[:,:,i+1]
+		for k in range(int(extrema.shape[0])):
+			for l in range(int(extrema.shape[1])):
+				if(abs(DOG_image[k,l]) <= threshold):
+					extrema[k,l] = 0
+		Emap[:,:,i] = extrema
+	return Emap
+
+def rm_edges(DOG, Emap, threshold):
+	"""
+	Remove the edges and flat keypoints
+	Parameters:
+		DOG: difference of Gaussians matrix
+		threshold: ratio between the two perpendicular gradients at keypoints
+	"""
+	for i in range(int(Emap.shape[2])):
+		extrema = Emap[:,:,i]
+		DOG_image = DOG[:,:,i+1]
+		for k in range(int(extrema.shape[0])):
+			for l in range(int(extrema.shape[1])):
+				if(extrema[k,l] == 1): ## Keypoint
+					## Compute the Hessian
+					H = np.zeros((2,2))
+					H[0,0] = (DOG_image[k+1,l] - DOG_image[k,l]) - (DOG_image[k,l] - DOG_image[k-1,l])
+					dx1 = (DOG_image[k+1,l-1] - DOG_image[k-1,l-1]) / 2
+					dx2 = (DOG_image[k+1,l+1] - DOG_image[k-1,l+1]) / 2
+					H[0,1] = d2 - d1
+					dy1 = (DOG_image[k-1,l+1] - DOG_image[k-1,l-1]) / 2
+					dy2 = (DOG_image[k+1,l+1] - DOG_image[k+1,l-1]) / 2
+					H[1,0] = dy2 - dy1
+					H[1,1] = (DOG_image[k,l+1] - DOG_image[k,l]) - (DOG_image[k,l] - DOG_image[k,l-1])
+					## Compute the Trace and Determinant
+					trH = np.trace(H)
+					detH = np.linalg.det(H)
+					## Test on the ratio
+					if((trH**2 / detH) >= ((threshold + 1)**2 / threshold)):
+						extrema[k,l] = 0 ## Remove the keypoint
+		Emap[:,:,i] = extrema
+	return Emap
+
+
 
 
 
