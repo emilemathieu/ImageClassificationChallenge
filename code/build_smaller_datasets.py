@@ -51,3 +51,20 @@ pd.DataFrame(Y_bin).to_csv('../data/Y_bin_01.csv',header=False, index=False)
 pd.DataFrame(X_bin).to_csv('../data/X_bin_01.csv',header=False, index=False)
 
 #%% Subsample multiclass problem: keep 100 samples (instead of 500) per class
+NB_CLASS = 10
+nb_sample_max_per_class = 50
+nb_sample_max = nb_sample_max_per_class * NB_CLASS
+X_small = np.zeros((nb_sample_max, X_full.shape[1]))
+Y_small = np.zeros(nb_sample_max).astype(int)
+
+for i in range(NB_CLASS):
+    indices = Y_full == i
+    Y_small_i = Y_full[indices]
+    Y_small_i = Y_small_i[0:nb_sample_max_per_class]
+    Y_small[i*nb_sample_max_per_class:(i+1)*nb_sample_max_per_class] = Y_small_i
+    X_small_i = X_full[indices,:]
+    X_small_i = X_small_i[0:nb_sample_max_per_class, :]
+    X_small[i*nb_sample_max_per_class:(i+1)*nb_sample_max_per_class,:] = X_small_i
+    
+pd.DataFrame(Y_small).to_csv('../data/Y_small_50.csv',header=False, index=False)
+pd.DataFrame(X_small).to_csv('../data/X_small_50.csv',header=False, index=False)
