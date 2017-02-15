@@ -212,8 +212,7 @@ def assign_orientation(L,Emap,sigma):
 								keypoints = np.concatenate((keypoints, key), axis=1)
 	return keypoints
 
-
-
+##% TO DO: build a class 'octave', 'keypoints', 'DoG', 'extrema map' for efficiency and clean
 
 
 
