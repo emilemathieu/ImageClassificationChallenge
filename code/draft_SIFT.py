@@ -210,9 +210,24 @@ def assign_orientation(L,Emap,sigma):
 								keypoint_magnitude = H[mi]
 								key = [k,l,(i+1) * sigma, keypoint_orientation, keypoint_magnitude]
 								keypoints = np.concatenate((keypoints, key), axis=1)
-	return keypoints
+	return keypoints[1:,:]
 
 ##% TO DO: build a class 'octave', 'keypoints', 'DoG', 'extrema map' for efficiency and clean
+
+## 6th step: Generate features
+
+def features(keypoints, wsize, L):
+	feat = np.zeros((keypoints.shape[0], wsize*8))
+	for i in range(keypoints.shape[0]):
+		key = keypoints[i,:]
+		scale = key[2]
+		L_image = L[:,:,scale]
+		N = L_image[key[0]-4:key[0]+5, key[1]-4:key[1]+5]
+		for j in range(4):
+			## build histogram for every window
+
+
+
 
 
 
