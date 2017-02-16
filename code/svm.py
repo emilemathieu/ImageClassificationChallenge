@@ -28,6 +28,11 @@ def rbf_kernel(sigma):
             return np.exp(exponent)
         return f
 
+def quadratic_kernel():
+    def f(x,y):
+        return np.inner(x,y)**2
+    return f
+
 class Base_binary_classification(object):
     """Linear Support Vector Classification.
     

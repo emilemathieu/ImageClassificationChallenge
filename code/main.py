@@ -43,7 +43,7 @@ from sklearn.dummy import DummyClassifier
 import svm
 from importlib import reload
 
-kernel = svm.linear_kernel()
+kernel = svm.quadratic_kernel()
 
 classifiers = {#'OVO-QP': svm.multiclass_1vs1(kernel=kernel),
                'OVO-SMO': svm.multiclass_ovo(kernel=kernel, algo='smo'),
