@@ -10,8 +10,8 @@ Created on Mon Feb 13 11:33:30 2017
 
 import cvxopt
 import numpy as np
-from functools import lru_cache
-from collections import Counter
+#from functools import lru_cache
+#from collections import Counter
 import itertools
 from scipy.stats import mode
 
