@@ -94,6 +94,11 @@ class Octave(object):
 		self.DOG = DOG
 
 	def find_extrema(self):
+		"""
+		Find the extrema of the DoG ie image lagrangian approximation function
+		Parameters:
+			DOG: the difference of gaussians function
+		"""
 		DOG = self.DOG
 		for k in range(1, int(DOG.shape[2])-1):
 			extrema = np.zeros((DOG.shape[0], DOG.shape[1]))
@@ -113,6 +118,12 @@ class Octave(object):
 						self.keys.append(key)
 
 	def rm_bkeys(self, threshold_contrast, threshold_edge):
+		"""
+		Remove the keypoints which are not pertinent (low constrast or on an edge)
+		Parameters:
+			threshold_contrast: threshold value for keypoint contrast 
+			threshold_edge: threshold value for keypoint gradient magnitude (ratio between the two eigenvalues)
+		"""
 		new_keys = []
 		for key in self.keys:
 			DOG_image = self.DOG[:,:,int(key.scale / self.sigma)]
@@ -142,6 +153,9 @@ class Octave(object):
 		self.keys = new_keys
 
 	def assign_orientation(self):
+		"""
+		Assign the dominant orientation of the gradient of each keypoint
+		"""
 		for key in self.keys:
 			L_image = self.octave[:,:,int(key.scale / self.sigma)]
 			## Compute magnitude and orientation around the keypoint
@@ -176,6 +190,96 @@ class Octave(object):
 						keypoint_magnitude = H[mi]
 						key = keypoint(k, l, key.scale, keypoint_orientation, keypoint_magnitude)
 
-	def generate_features(self):
+	def generate_features(self,wsize):
+		"""
+		Generate the actual SIFT features from the neighborhood gradient orientation and magnitude
+		Parameters:
+			wsize: size of the neighborhood (16x16 in D.Lowe, 8x8 in our case because of small images)
+		"""
+		for key in self.keys:
+			L_image = self.octave[:,:,int(key.scale / self.sigma)]
+			## Compute the magnitude and orientation around the keypoint
+			k = key.x
+			l = key.y
+
+			## First quadrant
+			M = np.zeros((4,4))
+			Theta = np.zeros((4,4))
+			for mi in range(1,5):
+				for mj in range(1,5):
+					M[mi-1,mi-1] = math.sqrt( (L_image[k-mi+1,l-mj] - L_image[k-mi-1,l-mj])**2 + (L_image[k-mi, l-mj+1] - L_image[k-mi, l-mj-1])**2 )
+					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k-mi, l-mj+1] - L_image[k-mi, l-mj-1])/(L_image[k-mi+1, l-mj] - L_image[k-mi-1, l-mj])) )
+			## Blur the magnitude matrix
+			M = filters.gaussian_filter(M, 1.5 * self.sigma)
+			## Put orientations in a 8 bin histogram
+			hist1 = np.zeros((1,8))
+			for mi in range(wsize):
+				for mj in range(wsize):
+					bin = math.floor( Theta[mi,mj] / 45)
+					hist[bin] = M[mi,mj] * Theta[mi,mj]
+
+			## Second quadrant
+			M = np.zeros((4,4))
+			Theta = np.zeros((4,4))
+			for mi in range(1,5):
+				for mj in range(1,5):
+					M[mi-1,mi-1] = math.sqrt( (L_image[k-mi+1,l+mj] - L_image[k-mi-1,l+mj])**2 + (L_image[k-mi, l+mj+1] - L_image[k-mi, l+mj-1])**2 )
+					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k-mi, l+mj+1] - L_image[k-mi, l+mj-1])/(L_image[k-mi+1, l+mj] - L_image[k-mi-1, l+mj])) )
+			## Blur the magnitude matrix
+			M = filters.gaussian_filter(M, 1.5 * self.sigma)
+			## Put orientations in a 8 bin histogram
+			hist2 = np.zeros((1,8))
+			for mi in range(wsize):
+				for mj in range(wsize):
+					bin = math.floor( Theta[mi,mj] / 45)
+					hist2[bin] = M[mi,mj] * Theta[mi,mj]
+
+			## Third quadrant
+			M = np.zeros((4,4))
+			Theta = np.zeros((4,4))
+			for mi in range(1,5):
+				for mj in range(1,5):
+					M[mi-1,mi-1] = math.sqrt( (L_image[k+mi+1,l-mj] - L_image[k+mi-1,l-mj])**2 + (L_image[k+mi, l-mj+1] - L_image[k+mi, l-mj-1])**2 )
+					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k+mi, l-mj+1] - L_image[k+mi, l-mj-1])/(L_image[k+mi+1, l-mj] - L_image[k+mi-1, l-mj])) )
+			## Blur the magnitude matrix
+			M = filters.gaussian_filter(M, 1.5 * self.sigma)
+			## Put orientations in a 8 bin histogram
+			hist3 = np.zeros((1,8))
+			for mi in range(wsize):
+				for mj in range(wsize):
+					bin = math.floor( Theta[mi,mj] / 45)
+					hist3[bin] = M[mi,mj] * Theta[mi,mj]
+
+			## Fourth quadrant
+			M = np.zeros((4,4))
+			Theta = np.zeros((4,4))
+			for mi in range(1,5):
+				for mj in range(1,5):
+					M[mi-1,mi-1] = math.sqrt( (L_image[k+mi+1,l+mj] - L_image[k+mi-1,l+mj])**2 + (L_image[k+mi, l+mj+1] - L_image[k+mi, l+mj-1])**2 )
+					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k+mi, l+mj+1] - L_image[k+mi, l+mj-1])/(L_image[k+mi+1, l+mj] - L_image[k+mi-1, l+mj])) )
+			## Blur the magnitude matrix
+			M = filters.gaussian_filter(M, 1.5 * self.sigma)
+			## Put orientations in a 8 bin histogram
+			hist4 = np.zeros((1,8))
+			for mi in range(wsize):
+				for mj in range(wsize):
+					bin = math.floor( Theta[mi,mj] / 45)
+					hist4[bin] = M[mi,mj] * Theta[mi,mj]
+
+			## Concatenate the histograms
+			Hist = np.concatenate((hist1, hist2), axis=0)
+			Hist = np.concatenate((Hist, hist3), axis=0)
+			Hist = np.concatenate((Hist, hist4), axis=0)
+
+			## Ensure rotation independence
+			Hist = Hist - key.orientation
+
+			## Ensure illumination independence
+			Hist[Hist > 0.2] = 0.2
+
+			## Assign Hist to keypoint features
+			key.features = Hist
+
+
 
 
