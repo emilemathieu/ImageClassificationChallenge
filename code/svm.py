@@ -117,9 +117,10 @@ class Base_binary_classification(object):
         return sum(scores) / len(scores)
 
 class binary_classification_smo(Base_binary_classification):
-    def __init__(self, kernel, C=1.0, epsilon=1e-3):
+    def __init__(self, kernel, C=1.0, epsilon=1e-3, max_iteration=1000):
         super().__init__(kernel, C=1.0)
         self._epsilon = epsilon
+        self._max_iteration = max_iteration
         
         #@lru_cache()
     def _compute_kernel_matrix_row(self, X, index):
@@ -184,7 +185,7 @@ class binary_classification_smo(Base_binary_classification):
             Kj = self._compute_kernel_matrix_row(X, j)
 
             stop_criterion = not (yg_i[i] - yg_j[j] < self._epsilon)
-            if (not stop_criterion) or iteration > 999:
+            if (not stop_criterion) or iteration >= self._max_iteration:
                 break
             
             #compute lambda
