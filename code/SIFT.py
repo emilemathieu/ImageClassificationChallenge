@@ -63,8 +63,8 @@ class Octave(object):
 		self.scale = []
 		for i in range(self.nb_levels):
 			self.scale.append(k ** (i+1) * self.sigma)
-		self.octave = np.array()
-		self.DOG = np.array()
+		self.octave = np.array([])
+		self.DOG = np.array([])
 		
 	def build_octave(self):
 		"""
@@ -75,12 +75,12 @@ class Octave(object):
 			k: blur ratio between scales
 			sigma: variance of the gaussian blur
 		"""
-		octave = np.ones((image.shape[0],image.shape[1],nb_levels))
-		for i in range(nb_levels):
-			octave[:,:,i] = filters.gaussian_filter(image, (1+i) * k * sigma)
+		octave = np.ones((self.image.shape[0],self.image.shape[1],self.nb_levels))
+		for i in range(self.nb_levels):
+			octave[:,:,i] = filters.gaussian_filter(self.image, (1+i) * self.k * self.sigma)
 		self.octave = octave
 
-	def DoG(self):
+	def log_approx(self):
 		"""
 		Compute the Difference of Gaussian images as an approximation of the image Laplacian
 		Parameters:
@@ -88,8 +88,8 @@ class Octave(object):
 		"""
 		octave = self.octave
 		nb_levels = int(octave.shape[2])
-		DOG = np.ones((octave.shape[0],octave.shape[1],octave.shape[2]-1))
-		for i in range(nb_levels - 1):
+		DOG = np.ones((self.octave.shape[0],self.octave.shape[1],nb_levels-1))
+		for i in range(self.nb_levels - 1):
 			DOG[:,:,i] = octave[:,:,i] - octave[:,:,i + 1]
 		self.DOG = DOG
 
@@ -101,7 +101,6 @@ class Octave(object):
 		"""
 		DOG = self.DOG
 		for k in range(1, int(DOG.shape[2])-1):
-			extrema = np.zeros((DOG.shape[0], DOG.shape[1]))
 			for i in range(1, int(DOG.shape[0]) - 1):
 				for j in range(1, int(DOG.shape[1]) - 1):
 					neighborhood_upscale = DOG[i-1:i+2, j-1:j+2, k-1].flatten()
@@ -139,7 +138,7 @@ class Octave(object):
 			H[0,0] = (DOG_image[k+1,l] - DOG_image[k,l]) - (DOG_image[k,l] - DOG_image[k-1,l])
 			dx1 = (DOG_image[k+1,l-1] - DOG_image[k-1,l-1]) / 2
 			dx2 = (DOG_image[k+1,l+1] - DOG_image[k-1,l+1]) / 2
-			H[0,1] = d2 - d1
+			H[0,1] = dx2 - dx1
 			dy1 = (DOG_image[k-1,l+1] - DOG_image[k-1,l-1]) / 2
 			dy2 = (DOG_image[k+1,l+1] - DOG_image[k+1,l-1]) / 2
 			H[1,0] = dy2 - dy1
@@ -174,9 +173,9 @@ class Octave(object):
 			H = np.zeros((36,1))
 			M = M.flatten()
 			Theta = Theta.flatten()
-			for mi in range(36):
-				bin = math.floor(Theta[mi] / 10) ## between 0 and 35
-				H[bin] = Theta[mi] * M[mi]
+			for mi in range(9):
+				bin_h = int(math.floor(Theta[mi] / 10)) ## between 0 and 35
+				H[bin_h] = Theta[mi] * M[mi]
 			## Define the orientation of the keypoint
 			keypoint_orientation = np.argmax(H)
 			keypoint_magnitude = np.max(H)
@@ -212,11 +211,11 @@ class Octave(object):
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
-			hist1 = np.zeros((1,8))
-			for mi in range(wsize):
-				for mj in range(wsize):
-					bin = math.floor( Theta[mi,mj] / 45)
-					hist[bin] = M[mi,mj] * Theta[mi,mj]
+			hist1 = [0]*8
+			for mi in range(4):
+				for mj in range(4):
+					bin_h = int(math.floor( Theta[mi,mj] / 45))
+					hist1[bin_h] += M[mi,mj] * Theta[mi,mj]
 
 			## Second quadrant
 			M = np.zeros((4,4))
@@ -228,11 +227,11 @@ class Octave(object):
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
-			hist2 = np.zeros((1,8))
-			for mi in range(wsize):
-				for mj in range(wsize):
-					bin = math.floor( Theta[mi,mj] / 45)
-					hist2[bin] = M[mi,mj] * Theta[mi,mj]
+			hist2 = [0]*8
+			for mi in range(4):
+				for mj in range(4):
+					bin_h = int(math.floor( Theta[mi,mj] / 45))
+					hist2[bin_h] += M[mi,mj] * Theta[mi,mj]
 
 			## Third quadrant
 			M = np.zeros((4,4))
@@ -244,11 +243,11 @@ class Octave(object):
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
-			hist3 = np.zeros((1,8))
-			for mi in range(wsize):
-				for mj in range(wsize):
-					bin = math.floor( Theta[mi,mj] / 45)
-					hist3[bin] = M[mi,mj] * Theta[mi,mj]
+			hist3 = [0]*8
+			for mi in range(4):
+				for mj in range(4):
+					bin_h = int(math.floor( Theta[mi,mj] / 45))
+					hist3[bin_h] += M[mi,mj] * Theta[mi,mj]
 
 			## Fourth quadrant
 			M = np.zeros((4,4))
@@ -260,13 +259,17 @@ class Octave(object):
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
-			hist4 = np.zeros((1,8))
-			for mi in range(wsize):
-				for mj in range(wsize):
-					bin = math.floor( Theta[mi,mj] / 45)
-					hist4[bin] = M[mi,mj] * Theta[mi,mj]
+			hist4 = [0]*8
+			for mi in range(4):
+				for mj in range(4):
+					bin_h = int(math.floor( Theta[mi,mj] / 45))
+					hist4[bin_h] += M[mi,mj] * Theta[mi,mj]
 
 			## Concatenate the histograms
+			hist1 = np.array(hist1)
+			hist2 = np.array(hist2)
+			hist3 = np.array(hist3)
+			hist4 = np.array(hist4)
 			Hist = np.concatenate((hist1, hist2), axis=0)
 			Hist = np.concatenate((Hist, hist3), axis=0)
 			Hist = np.concatenate((Hist, hist4), axis=0)
@@ -288,7 +291,7 @@ def SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize):
 	image = rgb2gray(image)
 	Oct = Octave(image, nb_levels, k, sigma)
 	Oct.build_octave()
-	Oct.DoG()
+	Oct.log_approx()
 	Oct.find_extrema()
 	Oct.rm_bkeys(t_contrast, t_edge)
 	Oct.assign_orientation()
