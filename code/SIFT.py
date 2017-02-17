@@ -281,5 +281,20 @@ class Octave(object):
 			key.features = Hist
 
 
+def SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize):
+	"""
+	Main function
+	"""
+	image = rgb2gray(image)
+	Oct = Octave(image, nb_levels, k, sigma)
+	Oct.build_octave()
+	Oct.DoG()
+	Oct.find_extrema()
+	Oct.rm_bkeys(t_contrast, t_edge)
+	Oct.assign_orientation()
+	Oct.generate_features(wsize)
+	return Oct.keys
+
+
 
 
