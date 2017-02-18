@@ -62,7 +62,7 @@ for index in range(X.shape[0]):
     compt += 1
     
     ## Update labels
-    augmented_Y[ind:ind+5,0] = range(ind+1, ind+6)
+    augmented_Y[ind:ind+5,0] = range(ind+5001, ind+5006)
     augmented_Y[ind:ind+5,1] = int(Y[index, 1])
     
 ## Save in csv file

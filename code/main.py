@@ -25,27 +25,31 @@ CHANEL_SIZE = IMAGE_SIZE * IMAGE_SIZE
 
 X_full = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
 #X_cnn_features = pd.read_csv('../data/Xtr_features_cnn.csv', header=None).as_matrix()
+X_augmented = pd.read_csv('../data/augmented_X.csv',header=None).as_matrix()
+X_final = np.concatenate((X_full,X_augmented),axis=0)
 
 Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
+Y_augmented = pd.read_csv('../data/augmented_Y.csv').as_matrix()[:,1]
+Y_final = np.concatenate((Y_full, Y_augmented),axis=0)
 
 #%%
 #X_multi = X_cnn_features
-X_multi = rgb_to_greyscale(X_full)
-Y_multi = Y_full
+X_multi = rgb_to_greyscale(X_final)
+Y_multi = Y_final
 N = len(Y_multi)
 #%% Select classifiers
 
 from sklearn.svm import SVC, LinearSVC
 from sklearn.dummy import DummyClassifier
 import svm
-from importlib import reload
+#from importlib import reload
 
 kernel = svm.quadratic_kernel()
 
 classifiers = {
                #'OVO-QP': svm.multiclass_1vs1(kernel=kernel),
-               #'OVO-SMO quad': svm.multiclass_ovo(kernel=svm.quadratic_kernel()),
-               #'OVA-SMO lin': svm.multiclass_ova(kernel=svm.linear_kernel(), algo='smo'),
+               'OVO-SMO quad': svm.multiclass_ovo(kernel=svm.quadratic_kernel()),
+               'OVA-SMO lin': svm.multiclass_ova(kernel=svm.quadratic_kernel(), algo='smo'),
                'sklearn lin 1': SVC(kernel='linear', C=1.0)
                }
 
