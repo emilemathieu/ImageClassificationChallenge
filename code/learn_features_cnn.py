@@ -26,14 +26,17 @@ from sklearn.model_selection import train_test_split
 X = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
 X = X * 2
 y = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
 
-X_train = torch.FloatTensor(X_train).view(-1, 3, 32, 32)
-y_train = torch.LongTensor(y_train)
+X_train_tensor = torch.FloatTensor(X_train).view(-1, 3, 32, 32)
+y_train_tensor = torch.LongTensor(y_train)
+X_train = X_train_tensor.numpy()
+y_train = y_train_tensor.numpy()
 
-X_test = torch.FloatTensor(X_test).view(-1, 3, 32, 32)
-y_test = torch.LongTensor(y_test)
-
+X_test_tensor = torch.FloatTensor(X_test).view(-1, 3, 32, 32)
+y_test_tensor = torch.LongTensor(y_test)
+X_test = X_test_tensor.numpy()
+y_test = y_test_tensor.numpy()
 #%%
 
 class Net_deep(torch.nn.Module):
@@ -93,13 +96,15 @@ class Net(torch.nn.Module):
 net = Net()
 net
 
-criterion = torch.nn.CrossEntropyLoss() # use a Classification Cross-Entropy loss
-#optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-#optimizer = torch.optim.Adagrad(net.parameters())
-optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
-#optimizer = torch.optim.RMSprop(net.parameters())
 #%%
-N = X_train.size()[0]
+
+criterion = torch.nn.CrossEntropyLoss() # use a Classification Cross-Entropy loss
+optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+#optimizer = torch.optim.Adagrad(net.parameters())
+#optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
+#optimizer = torch.optim.RMSprop(net.parameters())
+
+N = X_train_tensor.size()[0]
 batch_size = 8
 nb_batchs = int(N / batch_size)
 for epoch in range(20): # loop over the dataset multiple times
@@ -109,8 +114,8 @@ for epoch in range(20): # loop over the dataset multiple times
     #for i in np.random.permutation(nb_batchs):
         # get the inputs
         #inputs, labels = data
-        inputs = X_train[i*batch_size:(i+1)*batch_size,:]
-        labels = y_train[i*batch_size:(i+1)*batch_size]
+        inputs = X_train_tensor[i*batch_size:(i+1)*batch_size,:]
+        labels = y_train_tensor[i*batch_size:(i+1)*batch_size]
         
         # wrap them in Variable
         inputs, labels = torch.autograd.Variable(inputs), torch.autograd.Variable(labels)
@@ -121,6 +126,7 @@ for epoch in range(20): # loop over the dataset multiple times
         # forward + backward + optimize
         outputs = net(inputs)
         loss = criterion(outputs, labels)
+        #print(loss)
         loss.backward()        
         optimizer.step()
         
@@ -129,17 +135,19 @@ for epoch in range(20): # loop over the dataset multiple times
         if i % 100 == 99: # print every 2000 mini-batches
             print('[%d, %5d] loss: %.3f' % (epoch+1, i+1, running_loss / 100))
             running_loss = 0.0
+        #break
+            
 
 print('Finished Training')
 
-#%%
+#%% Score on training and test datasets
 correct_train = 0
 total_train = 0
-N = X_train.size()[0]
+N = X_train_tensor.size()[0]
 nb_batchs = int(N / batch_size)
 for i in range(nb_batchs):
-    inputs = X_train[i*batch_size:(i+1)*batch_size,:]
-    labels = y_train[i*batch_size:(i+1)*batch_size]
+    inputs = X_train_tensor[i*batch_size:(i+1)*batch_size,:]
+    labels = y_train_tensor[i*batch_size:(i+1)*batch_size]
     outputs = net(torch.autograd.Variable(inputs))
     _, predicted = torch.max(outputs.data, 1)
     total_train += labels.size(0)
@@ -147,11 +155,11 @@ for i in range(nb_batchs):
 
 correct_test = 0
 total_test = 0
-N = X_test.size()[0]
+N = X_test_tensor.size()[0]
 nb_batchs = int(N / batch_size)
 for i in range(nb_batchs):
-    inputs = X_test[i*batch_size:(i+1)*batch_size,:]
-    labels = y_test[i*batch_size:(i+1)*batch_size]
+    inputs = X_test_tensor[i*batch_size:(i+1)*batch_size,:]
+    labels = y_test_tensor[i*batch_size:(i+1)*batch_size]
     outputs = net(torch.autograd.Variable(inputs))
     _, predicted = torch.max(outputs.data, 1)
     total_test += labels.size(0)
