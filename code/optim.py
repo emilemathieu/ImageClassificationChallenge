@@ -7,7 +7,6 @@ Created on Sun Feb 19 17:42:31 2017
 """
 
 import numpy as np
-import math
 
 class Optimizer(object):
     def __init__(self, parameters = []):
@@ -67,7 +66,6 @@ class Adam(Optimizer):
         self.lr = lr
         self.betas = betas
         self.eps = eps
-        self.step = 0
         
     def get_state(self, key, shape):
         if key in self.state:
@@ -94,6 +92,5 @@ class Adam(Optimizer):
         m_unbiased = m / (1 - beta1)
         v_unbiased = v / (1 - beta2)
         ## Define new step
-        objective = objective - ( self.lr / (math.sqrt(v_unbiased) + self.eps) ) * m_unbiased
-        self.step += 1
-        return
+        objective = objective - self.lr / (np.sqrt(v_unbiased) + self.eps) * m_unbiased
+        return objective
