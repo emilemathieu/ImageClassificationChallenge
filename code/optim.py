@@ -64,8 +64,9 @@ class Adam(Optimizer):
 	"""
     def __init__(self, lr=0.001, betas=[0.9, 0.999], eps=10e-8):
         super().__init__()
-        self.betas = betas
         self.lr = lr
+        self.betas = betas
+        self.eps = eps
         self.step = 0
         
     def get_state(self, key, shape):
@@ -83,7 +84,7 @@ class Adam(Optimizer):
         key = str(layer_id) + weight_type
         m, v = self.get_state(key, gradient.shape)
 
-        g = gradient(objective)
+        g = gradient
         beta1 = self.betas[0]
         beta2 = self.betas[1]
         m = beta1 * m + (1 - beta1) * g ## Estimate of the mean of the gradient
@@ -93,6 +94,6 @@ class Adam(Optimizer):
         m_unbiased = m / (1 - beta1)
         v_unbiased = v / (1 - beta2)
         ## Define new step
-        objective = objective - ( self.lr / (math.sqrt(v_unbiased) + self.lr) ) * m_unbiased
+        objective = objective - ( self.lr / (math.sqrt(v_unbiased) + self.eps) ) * m_unbiased
         self.step += 1
         return
