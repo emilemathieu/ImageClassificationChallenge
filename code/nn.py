@@ -23,12 +23,12 @@ class Module(object):
          raise NotImplementedError()
      
      def step(self, optimizer):
-         self._bias = optimizer(self._bias, self._grad_bias)
-         self._weight = optimizer(self._weight, self._grad_weight)
+         self._bias = optimizer(id(self), 'bias', self._bias, self._grad_bias)
+         self._weight = optimizer(id(self), 'weight', self._weight, self._grad_weight)
 
      def zero_grad(self):
-         del self._grad_bias
-         del self._grad_weight
+         self._grad_bias = None
+         self._grad_weight = None
          
 class ReLU(Module):
     def __init__(self):
@@ -125,13 +125,12 @@ class Conv2d(Module):
         #print(output_grad.shape)
         n_filters = self._weight.shape[0]
         
-        grad_bias = np.sum(output_grad, axis=(0, 2, 3))
-        self._grad_bias = grad_bias.reshape(n_filters, -1)
+        self._grad_bias = np.sum(output_grad, axis=(0, 2, 3))
     
         output_grad_reshaped = output_grad.transpose(1, 2, 3, 0).reshape(n_filters, -1)
-        grad_bias = output_grad_reshaped @ self._X_col.T
-        self._grad_bias = grad_bias.reshape(self._weight.shape)
-    
+        grad_weight = output_grad_reshaped @ self._X_col.T
+        self._grad_weight = grad_weight.reshape(self._weight.shape)
+        
         W_reshape = self._weight.reshape(n_filters, -1)
         dX_col = W_reshape.T @ output_grad_reshaped
         return im2col.col2im_indices(dX_col, self._X_shape, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
@@ -152,7 +151,7 @@ class Linear(Module):
     def backward(self, output_grad):
         #print('Linear - backward')
         #print(output_grad.shape)
-        self._grad_bias = output_grad
+        self._grad_bias = np.sum(output_grad,axis=0)
         self._grad_weight = np.dot(output_grad.T, self._last_input)
         return np.dot(output_grad, self._weight)
     
@@ -177,7 +176,9 @@ class Sequential(Module):
         return output_grad
     
     def step(self, optimizer):
+        #print('Sequential - step')
         for module in self._modules:
+            #print(type(module))
             if isinstance(module, Linear) or isinstance(module, Conv2d):
                 module.step(optimizer)
     
@@ -203,7 +204,7 @@ class CrossEntropyLoss(object):
         loss = 0
         for i, y in enumerate(Y):
             loss += - y[labels[i]] + np.log(np.sum(np.exp(y)))
-        return loss
+        return loss/len(labels)
     
     def grad(self, Y, labels):
         output_grad = np.empty_like(Y)
@@ -212,22 +213,10 @@ class CrossEntropyLoss(object):
             output_grad[i, labels[i]] -= 1
         return output_grad
         
-class optimizer(object):
-    def __init__(self, parameters = []):
-        self._parameters = parameters
-        
-    def __call__(self, objective, gradient):
-        #return new objective
-        return objective - 0.01 * gradient
-        
-#    def zero_grad(self):
-#        for parameter in self._parameters:
-#            print(parameter)
-#            # set gradient of parameter to zero
-#    def step(self):
-#        for parameter in self._parameters:
-#            print(parameter)
-#            # step in direction of parameter's gradient
+class Variable(object):
+    def __init__(self, data=None):
+        self.data = data
+        self.grad = None
     
 #%%
 class MyNet(Module):
@@ -259,6 +248,7 @@ class MyNet(Module):
         return self.features.backward(output_grad)    
     
     def step(self, optimizer):
+        #print('MyNet - step')
         self.classifier.step(optimizer)
         self.features.step(optimizer)
         
@@ -278,12 +268,12 @@ for parameter in net.parameters():
     parameters.append(parameter.data.numpy())
     
 #%% Copy weights from torch CNN
-mynet.features._modules[0]._weight = parameters[0]
-mynet.features._modules[0]._bias = parameters[1]
-mynet.features._modules[3]._weight = parameters[2]
-mynet.features._modules[3]._bias = parameters[3]
-mynet.classifier._modules[0]._weight = parameters[4]
-mynet.classifier._modules[0]._bias = parameters[5]
+mynet.features._modules[0]._weight = parameters[0].copy()
+mynet.features._modules[0]._bias = parameters[1].copy()
+mynet.features._modules[3]._weight = parameters[2].copy()
+mynet.features._modules[3]._bias = parameters[3].copy()
+mynet.classifier._modules[0]._weight = parameters[4].copy()
+mynet.classifier._modules[0]._bias = parameters[5].copy()
 
 #%% Load DATA
 #import pandas as pd
@@ -300,18 +290,25 @@ mynet.classifier._modules[0]._bias = parameters[5]
 
 #%% Test entire net
 n_d = 8
-res_net = net(torch.autograd.Variable(X_train_tensor[0:n_d,:])).data.numpy()
-res_mynet = mynet(X_train[0:n_d,:])
+res_net = net(torch.autograd.Variable(X_train_tensor[0:n_d,:]))
+criterion = torch.nn.CrossEntropyLoss()
+print(criterion(res_net, torch.autograd.Variable(y_train_tensor[0:n_d])))
 
+res_mynet = mynet(X_train[0:n_d,:])
 criterion = CrossEntropyLoss()
-print(criterion(res_net, y_train[0:n_d]))
 print(criterion(res_mynet, y_train[0:n_d]))
 
 #%% Train
+import optim
+#optimizer = optim.SGD(lr=0.001, momentum=0.9)
+optimizer = optim.Adam(lr=0.001)
+
+criterion = CrossEntropyLoss()
+
 N = X_train.shape[0]
 batch_size = 8
 nb_batchs = int(N / batch_size)
-for epoch in range(1): # loop over the dataset multiple times
+for epoch in range(10): # loop over the dataset multiple times
     
     running_loss = 0.0
     for i in range(nb_batchs):
@@ -323,23 +320,53 @@ for epoch in range(1): # loop over the dataset multiple times
 
         # zero the parameter gradients
         #optimizer.zero_grad()
+        mynet.zero_grad()
         
         # forward + backward + optimize
         outputs = mynet(inputs)
         loss = criterion(outputs, labels)
+        #print(round(loss,4))
         grad = criterion.grad(outputs, labels)
         mynet.backward(grad)  
-        #mynet.step(optimizer)
+        mynet.step(optimizer)
         # print statistics
         running_loss += loss
         if i % 100 == 99: # print every 2000 mini-batches
             print('[%d, %5d] loss: %.3f' % (epoch+1, i+1, running_loss / 100))
             running_loss = 0.0
-        break
+        
 
 print('Finished Training')
 
-##%% Get initialization via reverse engineering
+#%% Score on training and test datasets
+correct_train = 0
+total_train = 0
+N = X_train.shape[0]
+nb_batchs = int(N / batch_size)
+for i in range(nb_batchs):
+    inputs = X_train[i*batch_size:(i+1)*batch_size,:]
+    labels = y_train[i*batch_size:(i+1)*batch_size]
+    outputs = mynet(inputs)
+    predicted = np.argmax(outputs.data, axis=1)
+    total_train += len(labels)
+    correct_train += (predicted == labels).sum()
+
+correct_test = 0
+total_test = 0
+N = X_test.shape[0]
+nb_batchs = int(N / batch_size)
+for i in range(nb_batchs):
+    inputs = X_test[i*batch_size:(i+1)*batch_size,:]
+    labels = y_test[i*batch_size:(i+1)*batch_size]
+    outputs = mynet(inputs)
+    predicted = np.argmax(outputs.data, axis=1)
+    total_test += len(labels)
+    correct_test += (predicted == labels).sum()
+
+print('Accuracy -- Train: {} | Test: {}'.format(
+        round(100*correct_train/total_train,2), round(100*correct_test/total_test,2)))
+
+#%% Get initialization via reverse engineering
 #seq = []
 #seq2 = []
 #for i in range(1):
