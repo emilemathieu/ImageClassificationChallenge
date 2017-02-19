@@ -6,32 +6,36 @@ Created on Mon Feb 13 11:33:30 2017
 @author: EmileMathieu
 """
 
-#%%
-
 import cvxopt
 import numpy as np
-#from functools import lru_cache
-#from collections import Counter
 import itertools
 from scipy.stats import mode
 
 MIN_SUPPORT_VECTOR_VALUE = 1e-3
 
-def linear_kernel():
+class Kernel(object):
+    @staticmethod
+    def linear():
         def f(x, y):
             return np.inner(x, y)
         return f
 
-def rbf_kernel(sigma):
+    @staticmethod
+    def gaussian(sigma):
         def f(x, y):
             exponent = -np.sqrt(np.linalg.norm(x-y) ** 2 / (2 * sigma ** 2))
             return np.exp(exponent)
         return f
 
-def quadratic_kernel():
-    def f(x,y):
-        return np.inner(x,y)**2
-    return f
+    @staticmethod
+    def _polykernel(dimension, offset=0.0):
+        def f(x, y):
+            return (offset + np.dot(x, y)) ** dimension
+        return f
+
+    @staticmethod
+    def quadratic():
+        return Kernel._polykernel(dimension=2, offset=0.0)
 
 class Base_binary_classification(object):
     """Linear Support Vector Classification.
@@ -117,7 +121,7 @@ class Base_binary_classification(object):
         return sum(scores) / len(scores)
 
 class binary_classification_smo(Base_binary_classification):
-    def __init__(self, kernel, C=1.0, epsilon=1e-3, max_iteration=1000):
+    def __init__(self, kernel, C=1.0, epsilon=1e-3, max_iteration=300):
         super().__init__(kernel, C=1.0)
         self._epsilon = epsilon
         self._max_iteration = max_iteration

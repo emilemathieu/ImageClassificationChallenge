@@ -9,23 +9,27 @@ Created on Sun Feb 19 17:42:31 2017
 import numpy as np
 
 class Optimizer(object):
-    def __init__(self, parameters = []):
+    def __init__(self, parameters):
         self._parameters = parameters   
-        self.state = {}
+        self._reset_state()
     def __call__(self, objective, gradient):
         raise NotImplementedError()
-#    def zero_grad(self):
-#        for parameter in self._parameters:
-#            print(parameter)
-#            # set gradient of parameter to zero
+    def zero_grad(self):
+        self._reset_state()
+        #for parameter in self._parameters:
+        #print(parameter)
+        #set gradient of parameter to zero
+    def _reset_state(self):
+        self.state = {}
+
 #    def step(self):
 #        for parameter in self._parameters:
 #            print(parameter)
 #            # step in direction of parameter's gradient
 
 class SGD(Optimizer):
-    def __init__(self, lr=0.1, momentum=0):
-        super().__init__()
+    def __init__(self, parameters=[], lr=0.1, momentum=0):
+        super().__init__(parameters)
         self.lr = lr
         self.momentum = momentum
         
@@ -50,19 +54,16 @@ class Adam(Optimizer):
 	ADAM Gradient descent optimization algorithm
 	-------------
 	Parameters:
-		eta 	(float, default: 0.001): 
+		lr 	(float, default: 0.001): 
 			learning rate of the gradient descent
 		betas	(tuple[float, float], default: [0.9, 0.999]):
 			decay rates for first and second order momentums
 		eps		(float, default: 10e-8): 
 			term for numerical stability
-		dJ		(function):
-			Gradient of the function to optimize
-		theta	(array):
-			Initial point
+
 	"""
-    def __init__(self, lr=0.001, betas=[0.9, 0.999], eps=10e-8):
-        super().__init__()
+    def __init__(self,  parameters=[], lr=0.001, betas=[0.9, 0.999], eps=10e-8):
+        super().__init__(parameters)
         self.lr = lr
         self.betas = betas
         self.eps = eps
@@ -78,6 +79,12 @@ class Adam(Optimizer):
     def __call__(self, layer_id, weight_type, objective, gradient):
         """
         Performs a step of Gradient descent with ADAM optimization
+        -------------
+        Pameters:
+            gradient (array)
+			  Gradient of the function to optimize
+            objective (array):
+			  Initial point
         """
         key = str(layer_id) + weight_type
         m, v = self.get_state(key, gradient.shape)
