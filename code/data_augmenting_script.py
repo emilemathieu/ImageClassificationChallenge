@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 import data_augmenting_tools as dtools
+import random
 #################################### DATA AUGMENTING SCRIPT ####################################
 
 ## Open data
@@ -68,4 +69,38 @@ for index in range(X.shape[0]):
 ## Save in csv file
 np.savetxt("../data/augmented_X.csv", augmented_X, delimiter=",")
 np.savetxt("../data/augmented_Y.csv", augmented_Y, delimiter=",")
-    
+
+#%% Apply stochastic transformation
+def data_augmentation(X, Y, k):
+    """
+    X: dataset to augmented
+    Y: labels
+    k: number of loops
+    """
+    augmented_X = np.zeros((k * X.shape[0], IMAGE_SIZE*IMAGE_SIZE*3))
+    augmented_Y = np.zeros((k * X.shape[0], 2))
+    for i in range(k):
+        for index in range(X.shape[0]):
+            r = random.uniform(0,5)
+            image = X[index,:]
+            image = image.reshape((3, CHANEL_SIZE))
+            image = image.reshape((3, IMAGE_SIZE, IMAGE_SIZE))
+            image = image.swapaxes(0,1)
+            image = image.swapaxes(1,2)
+            if(r<1):
+                image_tf = dtools.rotate(image,1)
+            elif(r<2 && r>=1):
+                image_tf = dtools.rotate(image,2)
+            elif(r<3 && r>=2):
+                image_tf = dtools.rotate(image,3)
+            elif(r<4 && r>=3):
+                image_tf = dtools.blur(image, sigma=0.5)
+            elif(r<5 && r>=4):
+                image = dtools.noise(image,sigma=0.01)
+            image = image.reshape((1, IMAGE_SIZE*IMAGE_SIZE*3))
+
+            augmented_X[index + i*X.shape[0],:] = image
+            augmented_Y[index + i*X.shape[0],0] = index + (i+1)*X.shape[0]
+            augmented_Y[index + i*X.shape[0],1] = Y[index,1]
+    np.savetxt("../data/augmented_X.csv",augmented_X,delimiter=",")
+    np.savetxt("../data/augmented_Y.csv",augmented_Y,delimiter=",")
