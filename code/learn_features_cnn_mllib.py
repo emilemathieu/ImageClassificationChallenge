@@ -13,22 +13,22 @@ class MyNet(nn.Module):
             nn.MaxPool2d(2,2)
         )
         
-        self.flatten = nn.Flatten()
+        #self.flatten = nn.Flatten()
         
         self.classifier = nn.Sequential(
                 nn.Linear(16*5*5, 10)
         )
     def forward(self, x):
         x = self.features(x)
-        x = self.flatten(x)
-        #x = x.reshape(-1, 16*5*5)
+        #x = self.flatten(x)
+        x = x.reshape(-1, 16*5*5)
         x = self.classifier(x)
         return x.reshape(x.shape[0],-1)
 
     def backward(self, output_grad):
         output_grad = self.classifier.backward(output_grad)
-        output_grad = self.flatten.backward(output_grad)
-        #output_grad = output_grad.reshape(-1, 16, 5, 5)
+        #output_grad = self.flatten.backward(output_grad)
+        output_grad = output_grad.reshape(-1, 16, 5, 5)
         return self.features.backward(output_grad)    
 
     def step(self, optimizer):
@@ -66,6 +66,7 @@ X = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1].astype(np.f
 y = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
+X = X.reshape(-1, 3, 32, 32)
 X_train = X_train.reshape(-1, 3, 32, 32)
 X_test = X_test.reshape(-1, 3, 32, 32)
 #%% Train
@@ -83,20 +84,18 @@ batch_size = 8
 nb_batchs = int(N / batch_size)
 
 start_global = timeit.default_timer()
-#optimizer.zero_grad()
-for epoch in range(5): # loop over the dataset multiple times
+optimizer.zero_grad()
+for epoch in range(20): # loop over the dataset multiple times
     
     running_loss = 0.0
     start = timeit.default_timer()
     for i in range(nb_batchs):
     #for i in np.random.permutation(nb_batchs):
         # get the inputs
-        #inputs, labels = data
         inputs = X_train[i*batch_size:(i+1)*batch_size,:]
         labels = y_train[i*batch_size:(i+1)*batch_size]
 
         # zero the parameter gradients
-        #optimizer.zero_grad()
         mynet.zero_grad()
         # forward + backward + optimize
         outputs = mynet(inputs)
@@ -110,10 +109,9 @@ for epoch in range(5): # loop over the dataset multiple times
         if i % 100 == 99: # print every 2000 mini-batches
             print('[{}, {}] - loss: {} | time: '.format(
                     epoch+1, i+1, round(running_loss / 100, 3)),
-                    round(timeit.default_timer() - start_global, 2))
+                    round(timeit.default_timer() - start, 2))
             running_loss = 0.0
             start = timeit.default_timer()
-        
 
 print('Finished Training | {} seconds'.format(round(timeit.default_timer() - start_global, 2)))
 
@@ -148,18 +146,13 @@ print('Accuracy -- Train: {} | Test: {}'.format(
 #%%
 import pandas as pd
 
-features_net = nn.Sequential()
-for i, layer in enumerate(mynet.features._modules):
-    print(i, type(layer), layer.__str__())
-    features_net.add_module(layer)
-
 N = X.shape[0]
 X_features = np.empty((N, 400))
 batch_size = 8
 nb_batchs = int(N / batch_size)
 for i in range(nb_batchs):
     inputs = X[i*batch_size:(i+1)*batch_size,:]
-    outputs = features_net(inputs)
+    outputs = mynet.features(inputs)
     X_features[i*batch_size:(i+1)*batch_size, :] = outputs.reshape(-1,16*5*5)
 
 pd.DataFrame(X_features).to_csv('../data/Xtr_features_mycnn.csv',header=False, index=False)
