@@ -268,7 +268,7 @@ class Base_multiclass(object):
 
 class multiclass_ovo(Base_multiclass):
     def __init__(self, kernel, C=1.0, algo='qp'):
-        super().__init__(kernel, C=1.0, algo)
+        super().__init__(kernel, C, algo)
 
     def fit(self, X, y):
         self._classes = set(y)
