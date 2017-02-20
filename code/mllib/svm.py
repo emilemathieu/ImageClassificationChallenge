@@ -35,7 +35,9 @@ class Kernel(object):
 
     @staticmethod
     def quadratic():
-        return Kernel._polykernel(dimension=2, offset=0.0)
+        def f(x, y):
+            return np.dot(x, y) ** 2
+        return f
 
 class Base_binary_classification(object):
     """Linear Support Vector Classification.
@@ -121,7 +123,7 @@ class Base_binary_classification(object):
         return sum(scores) / len(scores)
 
 class binary_classification_smo(Base_binary_classification):
-    def __init__(self, kernel, C=1.0, epsilon=1e-3, max_iteration=300):
+    def __init__(self, kernel, C=1.0, epsilon=1e-3, max_iteration=1000):
         super().__init__(kernel, C=1.0)
         self._epsilon = epsilon
         self._max_iteration = max_iteration
@@ -266,7 +268,7 @@ class Base_multiclass(object):
 
 class multiclass_ovo(Base_multiclass):
     def __init__(self, kernel, C=1.0, algo='qp'):
-        super().__init__(kernel, C=1.0, algo='qp')
+        super().__init__(kernel, C=1.0, algo)
 
     def fit(self, X, y):
         self._classes = set(y)
@@ -315,8 +317,7 @@ class multiclass_ovo(Base_multiclass):
 
 class multiclass_ova(Base_multiclass):
     def __init__(self, kernel, C=1.0, algo='qp'):
-        super().__init__(kernel, C=1.0, algo='qp')
-
+        super().__init__(kernel, C=1.0, algo)
     def fit(self, X, y):
         self._classes = set(y)
         classifiers = np.empty(len(self._classes), dtype=object)
