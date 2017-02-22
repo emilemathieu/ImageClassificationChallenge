@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 import datetime
+import simple_histogram as sh
 
 #%% Transform to greyscale function
 
@@ -37,6 +38,9 @@ Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 X_multi = rgb_to_greyscale(X_full)
 Y_multi = Y_full
 N = len(Y_multi)
+X_histo = sh.simple_histogram(X_full)
+Y_histo = Y_full
+
 #%% Select classifiers
 
 from sklearn.svm import SVC, LinearSVC
@@ -60,7 +64,7 @@ from sklearn.model_selection import train_test_split
 scores = {classifier_name: [] for classifier_name, classifier in classifiers.items()}
 times = {classifier_name: 0 for classifier_name, classifier in classifiers.items()}
 
-X_train, X_test, y_train, y_test = train_test_split(X_multi, Y_multi, test_size=0.33)
+X_train, X_test, y_train, y_test = train_test_split(X_histo, Y_histo, test_size=0.33)
 
 for classifier_name, classifier in classifiers.items():
     print("%s - fit" % classifier_name)

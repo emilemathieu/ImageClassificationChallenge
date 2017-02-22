@@ -38,6 +38,7 @@ class Kernel(object):
         def f(x, y):
             return np.dot(x, y) ** 2
         return f
+    
 
 class Base_binary_classification(object):
     """Linear Support Vector Classification.
