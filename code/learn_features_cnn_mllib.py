@@ -2,14 +2,18 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from data_augmentation import data_augmenting_script as das
 
 X = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1].astype(np.float32)
-y = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
+y = pd.read_csv('../data/Ytr.csv').as_matrix()
+augmented_X, augmented_y = das.data_augmentation(X,y,2)
+augmented_y = augmented_y[:,1].astype(int)
+X_train, X_test, y_train, y_test = train_test_split(augmented_X, augmented_y, test_size=0.33)
 
-X = X.reshape(-1, 3, 32, 32)
-X_train = X_train.reshape(-1, 3, 32, 32)
-X_test = X_test.reshape(-1, 3, 32, 32)
+IM_SIZE = 24
+augmented_X = augmented_X.reshape(-1, 3, IM_SIZE, IM_SIZE)
+X_train = X_train.reshape(-1, 3, IM_SIZE, IM_SIZE)
+X_test = X_test.reshape(-1, 3, IM_SIZE, IM_SIZE)
 
 #%% Score on training and test datasets
 
@@ -58,19 +62,19 @@ class MyNet(nn.Module):
         #self.flatten = nn.Flatten()
         
         self.classifier = nn.Sequential(
-                nn.Linear(12*5*5, 10)
+                nn.Linear(12*3*3, 10)
         )
     def forward(self, x):
         x = self.features(x)
         #x = self.flatten(x)
-        x = x.reshape(-1, 12*5*5)
+        x = x.reshape(-1, 12*3*3)
         x = self.classifier(x)
         return x.reshape(x.shape[0],-1)
 
     def backward(self, output_grad):
         output_grad = self.classifier.backward(output_grad)
         #output_grad = self.flatten.backward(output_grad)
-        output_grad = output_grad.reshape(-1, 12, 5, 5)
+        output_grad = output_grad.reshape(-1, 12, 3, 3)
         return self.features.backward(output_grad)    
 
     def step(self, optimizer):
