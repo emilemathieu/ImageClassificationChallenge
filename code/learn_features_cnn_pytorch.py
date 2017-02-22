@@ -26,7 +26,7 @@ from sklearn.model_selection import train_test_split
 X = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
 X = X * 2
 y = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
 X_train_tensor = torch.FloatTensor(X_train).view(-1, 3, 32, 32)
 y_train_tensor = torch.LongTensor(y_train)
@@ -37,31 +37,68 @@ X_test_tensor = torch.FloatTensor(X_test).view(-1, 3, 32, 32)
 y_test_tensor = torch.LongTensor(y_test)
 X_test = X_test_tensor.numpy()
 y_test = y_test_tensor.numpy()
-#%%
 
-class Net_deep(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.features = torch.nn.Sequential(
-              torch.nn.Conv2d(in_channels=3, out_channels=16, kernel_size=5, stride=1, padding=2),
-              torch.nn.ReLU(),
-              torch.nn.MaxPool2d(kernel_size=2,stride=2),
-              torch.nn.Conv2d(in_channels=16, out_channels=20, kernel_size=5, stride=1, padding=2),
-              torch.nn.ReLU(),
-              torch.nn.MaxPool2d(kernel_size=2,stride=2),
-              torch.nn.Conv2d(in_channels=20, out_channels=20, kernel_size=5, stride=1, padding=2),
-              torch.nn.ReLU(),
-              torch.nn.MaxPool2d(kernel_size=2,stride=2)
-            )
-        
-        self.classifier = torch.nn.Sequential(
-              torch.nn.Linear(20*4*4, 10),
-            )
-    def forward(self, x):
-        x = self.features(x)
-        x = x.view(-1, 20*4*4)
-        x = self.classifier(x)
-        return x
+#%% Score on training and test datasets
+def score(algo):
+    correct_train = 0
+    total_train = 0
+    N = X_train_tensor.size()[0]
+    nb_batchs = int(N / batch_size)
+    for i in range(nb_batchs):
+        inputs = X_train_tensor[i*batch_size:(i+1)*batch_size,:]
+        labels = y_train_tensor[i*batch_size:(i+1)*batch_size]
+        outputs = algo(torch.autograd.Variable(inputs))
+        _, predicted = torch.max(outputs.data, 1)
+        total_train += labels.size(0)
+        correct_train += (predicted == labels).sum()
+    
+    correct_test = 0
+    total_test = 0
+    N = X_test_tensor.size()[0]
+    nb_batchs = int(N / batch_size)
+    for i in range(nb_batchs):
+        inputs = X_test_tensor[i*batch_size:(i+1)*batch_size,:]
+        labels = y_test_tensor[i*batch_size:(i+1)*batch_size]
+        outputs = algo(torch.autograd.Variable(inputs))
+        _, predicted = torch.max(outputs.data, 1)
+        total_test += labels.size(0)
+        correct_test += (predicted == labels).sum()
+    
+    print('Accuracy -- Train: {} | Test: {}'.format(
+            round(100*correct_train/total_train,2), round(100*correct_test/total_test,2)))
+
+#%%
+#X_train_tensor = X_train_tensor[:,:,4:28,4:28]
+#X_test_tensor = X_test_tensor[:,:,4:28,4:28]
+#
+#from torch.legacy.nn import SpatialCrossMapLRN
+#
+#class TFNet(torch.nn.Module):
+#    def __init__(self):
+#        super().__init__()
+#        self.features = torch.nn.Sequential(
+#                torch.nn.Conv2d(3, 64, 5, stride=1, padding=2),#Conv1
+#                torch.nn.ReLU(),
+#                torch.nn.MaxPool2d(3, stride=2),#Pool1
+#                #SpatialCrossMapLRN(4, 0.001 / 9.0, 0.75, 1),#norm1
+#                torch.nn.Conv2d(64, 64, 5, stride=1, padding=2),#Conv2
+#                torch.nn.ReLU(),
+#                #SpatialCrossMapLRN(4, 0.001 / 9.0, 0.75, 1),#norm2
+#                torch.nn.MaxPool2d(3, stride=2)#pool2
+#            )
+#        
+#        self.classifier = torch.nn.Sequential(
+#               torch.nn.Linear(64*5*5,384),#local3
+#               torch.nn.ReLU(),
+#               torch.nn.Linear(384,192),#local4
+#               torch.nn.ReLU(),
+#               torch.nn.Linear(192,10)
+#            )
+#    def forward(self, x):
+#        x = self.features(x)
+#        x = x.view(-1, 64*5*5)
+#        x = self.classifier(x)
+#        return x
 
 #%%
 class Net(torch.nn.Module):
@@ -72,14 +109,18 @@ class Net(torch.nn.Module):
               torch.nn.ReLU(),
               #torch.nn.Dropout2d(p=0.2),
               torch.nn.MaxPool2d(2,2),
-              torch.nn.Conv2d(6, 16, 5),
+              torch.nn.Conv2d(6, 12, 5),
               torch.nn.ReLU(),
-              torch.nn.MaxPool2d(2,2)
+              torch.nn.MaxPool2d(2,2),
             )
         
         self.classifier = torch.nn.Sequential(
-              #torch.nn.Dropout(p=0.2),
-              torch.nn.Linear(16*5*5, 10),
+              
+              torch.nn.Linear(12*5*5, 10),
+              #torch.nn.Linear(16*5*5, 84),
+              #torch.nn.ReLU(),
+              #torch.nn.Linear(84, 10)                
+                              
               #torch.nn.Linear(16*5*5, 120),
               #torch.nn.ReLU(),
               #torch.nn.Linear(120, 84),
@@ -89,29 +130,33 @@ class Net(torch.nn.Module):
             )
     def forward(self, x):
         x = self.features(x)
-        x = x.view(-1, 16*5*5)
+        x = x.view(-1, 12*5*5)
         x = self.classifier(x)
         return x
 #%%
 net = Net()
 net
+#outputs = net(torch.autograd.Variable(X_train_tensor[0:1,:]))
 
 #%%
+import timeit
 
 criterion = torch.nn.CrossEntropyLoss() # use a Classification Cross-Entropy loss
-optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+#optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 #optimizer = torch.optim.Adagrad(net.parameters())
-#optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
 #optimizer = torch.optim.RMSprop(net.parameters())
 
+start_global = timeit.default_timer()
 N = X_train_tensor.size()[0]
 batch_size = 8
 nb_batchs = int(N / batch_size)
-for epoch in range(20): # loop over the dataset multiple times
+for epoch in range(0, 40, 1): # loop over the dataset multiple times
     
     running_loss = 0.0
-    for i in range(nb_batchs):
-    #for i in np.random.permutation(nb_batchs):
+    start = timeit.default_timer()
+    #for i in range(nb_batchs):
+    for i in np.random.permutation(nb_batchs):
         # get the inputs
         #inputs, labels = data
         inputs = X_train_tensor[i*batch_size:(i+1)*batch_size,:]
@@ -133,40 +178,15 @@ for epoch in range(20): # loop over the dataset multiple times
         # print statistics
         running_loss += loss.data[0]
         if i % 100 == 99: # print every 2000 mini-batches
-            print('[%d, %5d] loss: %.3f' % (epoch+1, i+1, running_loss / 100))
+            print('[{}, {}] - loss: {} | time: '.format(
+                    epoch+1, i+1, round(running_loss / 100, 3)),
+                    round(timeit.default_timer() - start, 2))
             running_loss = 0.0
-        #break
+            start = timeit.default_timer()
+    if (epoch + 1) % 5 == 0:
+        score(net)            
             
-
-print('Finished Training')
-
-#%% Score on training and test datasets
-correct_train = 0
-total_train = 0
-N = X_train_tensor.size()[0]
-nb_batchs = int(N / batch_size)
-for i in range(nb_batchs):
-    inputs = X_train_tensor[i*batch_size:(i+1)*batch_size,:]
-    labels = y_train_tensor[i*batch_size:(i+1)*batch_size]
-    outputs = net(torch.autograd.Variable(inputs))
-    _, predicted = torch.max(outputs.data, 1)
-    total_train += labels.size(0)
-    correct_train += (predicted == labels).sum()
-
-correct_test = 0
-total_test = 0
-N = X_test_tensor.size()[0]
-nb_batchs = int(N / batch_size)
-for i in range(nb_batchs):
-    inputs = X_test_tensor[i*batch_size:(i+1)*batch_size,:]
-    labels = y_test_tensor[i*batch_size:(i+1)*batch_size]
-    outputs = net(torch.autograd.Variable(inputs))
-    _, predicted = torch.max(outputs.data, 1)
-    total_test += labels.size(0)
-    correct_test += (predicted == labels).sum()
-
-print('Accuracy -- Train: {} | Test: {}'.format(
-        round(100*correct_train/total_train,2), round(100*correct_test/total_test,2)))
+print('Finished Training | {} seconds'.format(round(timeit.default_timer() - start_global, 2)))
 
 #%%
 #import torchvision.models as models
