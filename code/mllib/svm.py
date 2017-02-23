@@ -99,6 +99,7 @@ class Kernel(object):
         def f(x, y):
             return (gamma * (offset + np.dot(x, y)) )** 2
         return f
+    
 
 
 class Base_binary_classification(object):

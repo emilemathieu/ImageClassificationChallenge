@@ -44,12 +44,12 @@ class keypoint(object):
 	"""
 	SIFT keypoint with features
 	"""
-	def __init__(self, x, y, scale):
+	def __init__(self, x, y, scale,orientation=0,magnitude=0):
 		self.x = x
 		self.y = y
 		self.scale = scale
-		self.orientation = 0
-		self.magnitude = 0
+		self.orientation = orientation
+		self.magnitude = magnitude
 		self.features = []
 
 class Octave(object):
@@ -77,7 +77,7 @@ class Octave(object):
 		"""
 		octave = np.ones((self.image.shape[0],self.image.shape[1],self.nb_levels))
 		for i in range(self.nb_levels):
-			octave[:,:,i] = filters.gaussian_filter(self.image, (1+i) * self.k * self.sigma)
+			octave[:,:,i] = filters.gaussian_filter(self.image, i * self.k * self.sigma)
 		self.octave = octave
 
 	def log_approx(self):
@@ -131,16 +131,16 @@ class Octave(object):
 			if(DOG_image[key.x, key.y] < threshold_contrast):
 				new_keys.append(key)
 
-			## Remowe edges
+			## Remove edges
 			k = key.x
 			l = key.y
 			H = np.zeros((2,2))
 			H[0,0] = (DOG_image[k+1,l] - DOG_image[k,l]) - (DOG_image[k,l] - DOG_image[k-1,l])
-			dx1 = (DOG_image[k+1,l-1] - DOG_image[k-1,l-1]) / 2
-			dx2 = (DOG_image[k+1,l+1] - DOG_image[k-1,l+1]) / 2
+			dx1 = (DOG_image[k+1,l] - DOG_image[k,l])
+			dx2 = (DOG_image[k+1,l+1] - DOG_image[k,l+1])
 			H[0,1] = dx2 - dx1
-			dy1 = (DOG_image[k-1,l+1] - DOG_image[k-1,l-1]) / 2
-			dy2 = (DOG_image[k+1,l+1] - DOG_image[k+1,l-1]) / 2
+			dy1 = (DOG_image[k,l+1] - DOG_image[k,l])
+			dy2 = (DOG_image[k+1,l+1] - DOG_image[k+1,l])
 			H[1,0] = dy2 - dy1
 			H[1,1] = (DOG_image[k,l+1] - DOG_image[k,l]) - (DOG_image[k,l] - DOG_image[k,l-1])
 			## Compute the Trace and Determinant
@@ -155,18 +155,34 @@ class Octave(object):
 		"""
 		Assign the dominant orientation of the gradient of each keypoint
 		"""
+		print("Number of keypoints: {}".format(len(self.keys)))
+		compt = 0
+		new_keys = []
 		for key in self.keys:
+			compt +=1
+			#print("keypoint #{}".format(compt))
 			L_image = self.octave[:,:,int(key.scale / self.sigma)]
 			## Compute magnitude and orientation around the keypoint
 			k = key.x
 			l = key.y
-			N = L_image[k-1:k+2,l-1:l+2]
 			M = np.zeros((3,3))
 			Theta = np.zeros((3,3))
-			for mi in range(3):
-				for mj in range(3):
-					M[mi, mj] = math.sqrt( (L_image[mi+1, mj] - L_image[mi-1,mj])**2 + (L_image[mi, mj+1] - L_image[mi, mj-1])**2 )
-					Theta[mi, mj] = math.degrees(math.atan( (L_image[mi, mj+1] - L_image[mi, mj-1])/(L_image[mi+1, mj] - L_image[mi-1, mj])) )
+			compt_i = 0
+			for mi in range(-1,2):
+				compt_j = 0
+				for mj in range(-1,2):
+					#print("compt_i: {}\ncompt_j: {}".format(compt_i, compt_j))
+					current_x = k+mi
+					current_y = l+mj
+					#print("current x: {}".format(current_x))
+					#print("current y: {}".format(current_y))
+					M[compt_i, compt_j] = math.sqrt( (L_image[current_x+1, current_y] - L_image[current_x-1,current_y])**2 + (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])**2 )
+					if((L_image[current_x+1, current_y] - L_image[current_x-1, current_y]) == 0):
+						Theta[compt_i, compt_j] = 90
+					else:
+						Theta[compt_i, compt_j] = math.degrees(math.atan( (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])/(L_image[current_x+1, current_y] - L_image[current_x-1, current_y])) )
+					compt_j += 1
+				compt_i += 1
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Build a histogram
@@ -181,13 +197,16 @@ class Octave(object):
 			keypoint_magnitude = np.max(H)
 			key.orientation = keypoint_orientation
 			key.magnitude = keypoint_magnitude
+			new_keys.append(key)
 			## Check if another orientation is above 80% of the maximum
 			for mi in range(36):
 				if(H[mi] > 0.8 * np.max(H)):
 					if(mi != np.argmax(H)):
 						keypoint_orientation = mi
 						keypoint_magnitude = H[mi]
-						key = keypoint(k, l, key.scale, keypoint_orientation, keypoint_magnitude)
+						new_key = keypoint(k, l, key.scale, keypoint_orientation, keypoint_magnitude)
+						new_keys.append(new_key) ## add the new keypoint with different orientation and magnitude
+		self.keys = new_keys
 
 	def generate_features(self,wsize):
 		"""
@@ -195,6 +214,7 @@ class Octave(object):
 		Parameters:
 			wsize: size of the neighborhood (16x16 in D.Lowe, 8x8 in our case because of small images)
 		"""
+		vsize = int(wsize/2)
 		for key in self.keys:
 			L_image = self.octave[:,:,int(key.scale / self.sigma)]
 			## Compute the magnitude and orientation around the keypoint
@@ -202,66 +222,86 @@ class Octave(object):
 			l = key.y
 
 			## First quadrant
-			M = np.zeros((4,4))
-			Theta = np.zeros((4,4))
-			for mi in range(1,5):
-				for mj in range(1,5):
-					M[mi-1,mi-1] = math.sqrt( (L_image[k-mi+1,l-mj] - L_image[k-mi-1,l-mj])**2 + (L_image[k-mi, l-mj+1] - L_image[k-mi, l-mj-1])**2 )
-					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k-mi, l-mj+1] - L_image[k-mi, l-mj-1])/(L_image[k-mi+1, l-mj] - L_image[k-mi-1, l-mj])) )
+			M = np.zeros((vsize,vsize))
+			Theta = np.zeros((vsize,vsize))
+			for mi in range(1,1+vsize):
+				for mj in range(1,1+vsize):
+					current_x = max(0,min(k-mi,L_image.shape[0]-2))
+					current_y = max(0,min(l-mj,L_image.shape[1]-2))
+					M[mi-1,mj-1] = math.sqrt( (L_image[current_x+1,l-mj] - L_image[current_x-1,l-mj])**2 + (L_image[current_x, l-mj+1] - L_image[current_x, l-mj-1])**2 )
+					if((L_image[current_x+1, l-mj] - L_image[current_x-1, l-mj]) == 0):
+						Theta[mi-1,mj-1] = 90
+					else:
+						Theta[mi-1,mj-1] = math.degrees(math.atan( (L_image[current_x, l-mj+1] - L_image[current_x, l-mj-1])/(L_image[current_x+1, l-mj] - L_image[current_x-1, l-mj])) )
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
 			hist1 = [0]*8
-			for mi in range(4):
-				for mj in range(4):
-					bin_h = int(math.floor( Theta[mi,mj] / 45))
+			for mi in range(vsize):
+				for mj in range(vsize):
+					bin_h = int(math.floor( Theta[mi,mj] / 45)) ## between 0 and 7
 					hist1[bin_h] += M[mi,mj] * Theta[mi,mj]
 
 			## Second quadrant
-			M = np.zeros((4,4))
-			Theta = np.zeros((4,4))
-			for mi in range(1,5):
-				for mj in range(1,5):
-					M[mi-1,mi-1] = math.sqrt( (L_image[k-mi+1,l+mj] - L_image[k-mi-1,l+mj])**2 + (L_image[k-mi, l+mj+1] - L_image[k-mi, l+mj-1])**2 )
-					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k-mi, l+mj+1] - L_image[k-mi, l+mj-1])/(L_image[k-mi+1, l+mj] - L_image[k-mi-1, l+mj])) )
+			M = np.zeros((vsize,vsize))
+			Theta = np.zeros((vsize,vsize))
+			for mi in range(1,1+vsize):
+				for mj in range(1,1+vsize):
+					current_x = max(0,min(k-mi,L_image.shape[0]-2))
+					current_y = max(0,min(l+mj,L_image.shape[1]-2))
+					M[mi-1,mj-1] = math.sqrt( (L_image[current_x+1,current_y] - L_image[current_x-1,current_y])**2 + (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])**2 )
+					if((L_image[current_x+1, current_y] - L_image[current_x-1, current_y]) == 0):
+						Theta[mi-1,mj-1] = 90
+					else:
+						Theta[mi-1,mj-1] = math.degrees(math.atan( (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])/(L_image[current_x+1, current_y] - L_image[current_x-1, current_y])) )
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
 			hist2 = [0]*8
-			for mi in range(4):
-				for mj in range(4):
+			for mi in range(vsize):
+				for mj in range(vsize):
 					bin_h = int(math.floor( Theta[mi,mj] / 45))
 					hist2[bin_h] += M[mi,mj] * Theta[mi,mj]
 
 			## Third quadrant
-			M = np.zeros((4,4))
-			Theta = np.zeros((4,4))
-			for mi in range(1,5):
-				for mj in range(1,5):
-					M[mi-1,mi-1] = math.sqrt( (L_image[k+mi+1,l-mj] - L_image[k+mi-1,l-mj])**2 + (L_image[k+mi, l-mj+1] - L_image[k+mi, l-mj-1])**2 )
-					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k+mi, l-mj+1] - L_image[k+mi, l-mj-1])/(L_image[k+mi+1, l-mj] - L_image[k+mi-1, l-mj])) )
+			M = np.zeros((vsize,vsize))
+			Theta = np.zeros((vsize,vsize))
+			for mi in range(1,1+vsize):
+				for mj in range(1,1+vsize):
+					current_x = max(0,min(k+mi,L_image.shape[0]-2))
+					current_y = max(0,min(l-mj,L_image.shape[1]-2))
+					M[mi-1,mj-1] = math.sqrt( (L_image[current_x+1,current_y] - L_image[current_x-1,current_y])**2 + (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])**2 )
+					if((L_image[current_x+1, current_y] - L_image[current_x-1, current_y]) == 0):
+						Theta[mi-1,mj-1] = 90
+					else:
+						Theta[mi-1,mj-1] = math.degrees(math.atan( (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])/(L_image[current_x+1, current_y] - L_image[current_x-1, current_y])) )
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
 			hist3 = [0]*8
-			for mi in range(4):
-				for mj in range(4):
+			for mi in range(vsize):
+				for mj in range(vsize):
 					bin_h = int(math.floor( Theta[mi,mj] / 45))
 					hist3[bin_h] += M[mi,mj] * Theta[mi,mj]
 
 			## Fourth quadrant
-			M = np.zeros((4,4))
-			Theta = np.zeros((4,4))
-			for mi in range(1,5):
-				for mj in range(1,5):
-					M[mi-1,mi-1] = math.sqrt( (L_image[k+mi+1,l+mj] - L_image[k+mi-1,l+mj])**2 + (L_image[k+mi, l+mj+1] - L_image[k+mi, l+mj-1])**2 )
-					Theta[mi-1,mi-1] = math.degrees(math.atan( (L_image[k+mi, l+mj+1] - L_image[k+mi, l+mj-1])/(L_image[k+mi+1, l+mj] - L_image[k+mi-1, l+mj])) )
+			M = np.zeros((vsize,vsize))
+			Theta = np.zeros((vsize,vsize))
+			for mi in range(1,1+vsize):
+				for mj in range(1,1+vsize):
+					current_x = max(0,min(k+mi,L_image.shape[0]-2))
+					current_y = max(0,min(l+mj,L_image.shape[1]-2))
+					M[mi-1,mj-1] = math.sqrt( (L_image[current_x+1,current_y] - L_image[current_x-1,current_y])**2 + (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])**2 )
+					if( (L_image[current_x+1,current_y] - L_image[current_x-1, current_y]) == 0):
+						Theta[mi-1,mj-1] = 90
+					else:
+						Theta[mi-1,mj-1] = math.degrees(math.atan( (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])/(L_image[current_x+1, current_y] - L_image[current_x-1, current_y])) )
 			## Blur the magnitude matrix
 			M = filters.gaussian_filter(M, 1.5 * self.sigma)
 			## Put orientations in a 8 bin histogram
 			hist4 = [0]*8
-			for mi in range(4):
-				for mj in range(4):
+			for mi in range(vsize):
+				for mj in range(vsize):
 					bin_h = int(math.floor( Theta[mi,mj] / 45))
 					hist4[bin_h] += M[mi,mj] * Theta[mi,mj]
 
