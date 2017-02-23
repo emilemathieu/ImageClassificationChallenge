@@ -349,6 +349,7 @@ X = X[:, 0:-1]
 
 def dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize):
     X_features = []
+    null_list = []
     for index in range(X.shape[0]):
         print("Sample #{}".format(index))
         image = X[index,:]
@@ -357,7 +358,11 @@ def dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize):
         image = image.swapaxes(0,1)
         image = image.swapaxes(1,2)
         Features = SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize)
+        print("Features: {}".format(len(Features)))
+        if(len(Features) == 0):
+            null_list.append(index)
         X_features.append(Features)
+    print("Zero descriptor for images: {}".format(null_list))
     return X_features
 
 nb_levels = 5
