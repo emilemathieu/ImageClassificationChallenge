@@ -49,4 +49,6 @@ Oct.assign_orientation()
 print("Generate features")
 Oct.generate_features(wsize)
 
+#%% Compute
+
 

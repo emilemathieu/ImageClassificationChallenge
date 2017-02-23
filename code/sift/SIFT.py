@@ -336,7 +336,38 @@ def SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize):
 	Oct.rm_bkeys(t_contrast, t_edge)
 	Oct.assign_orientation()
 	Oct.generate_features(wsize)
-	return Oct.keys
+	Features = np.zeros(64)
+	for key in Oct.keys:
+		feature = key.features 
+		Features = np.concatenate((Features,feature),axis=0)
+	return Features
+
+#%%
+X = pd.read_csv('../../data/Xtr.csv', header=None)
+X = X.as_matrix()
+X = X[:, 0:-1]
+
+def dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize):
+    X_features = []
+    for index in range(X.shape[0]):
+        print("Sample #{}".format(index))
+        image = X[index,:]
+        image = image.reshape((3, 32*32))
+        image = image.reshape((3, 32, 32))
+        image = image.swapaxes(0,1)
+        image = image.swapaxes(1,2)
+        Features = SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize)
+        X_features.append(Features)
+    return X_features
+
+nb_levels = 5
+k = 1.1
+sigma = 1. / math.sqrt(2)
+t_contrast = 1.2
+t_edge = 10
+wsize = 8
+X_SIFT = dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize)
+        
 
 
 
