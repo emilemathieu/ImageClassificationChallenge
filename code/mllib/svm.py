@@ -444,42 +444,42 @@ class multiclass_ovo(Base_multiclass):
 #        prediction = np.ravel(mode(predicted_labels, axis=1).mode)
 #        return prediction
 
-class multiclass_ova(Base_multiclass):
-    def __init__(self, kernel, C=1.0, algo='smo', max_iter=1000, cache_size = 200, tol=1.0):
-        super().__init__(kernel, C=C, algo=algo)
-        self.max_iter = max_iter
-        self.cache_size = cache_size
-        self.tol = tol
-
-    def fit(self, X, y):
-        self.classes_ = set(y)
-        classifiers = np.empty(len(self.classes_), dtype=object)
-        for i, label in enumerate(self.classes_):
-            print(label)
-            if self._algo == 'smo':
-                SVM_binary = binary_classification_smo(
-                        kernel=self.kernel, C=self.C, max_iter=self.max_iter,
-                        cache_size=self.cache_size, tol=self.tol)
-            else:
-                SVM_binary = binary_classification_qp(self.C, kernel=self.kernel, C=self.C)
-            X_filtered, y_filtered = self._filter_dataset_by_labels(X, y, label)
-            SVM_binary.fit(X_filtered, y_filtered)
-            classifiers[i] = SVM_binary
-        self.estimators_ = classifiers
-
-    def _filter_dataset_by_labels(self, X, y, label):
-        class_pos_indices = (y == label)
-        class_neg_indices = (y != label)
-        X_filtered = X.copy()
-        y_filtered = y.copy()
-        y_filtered[class_pos_indices] = 1
-        y_filtered[class_neg_indices] = -1
-        return X_filtered, y_filtered
-
-    def predict(self, X):
-        n_samples = X.shape[0]
-        predicted_scores = np.zeros((n_samples, len(self.classes_)))
-        for i, label in enumerate(self.classes_):
-            print(i)
-            predicted_scores[:,i] = self.estimators_[i].predict_value(X)
-        return np.argmax(predicted_scores, axis=1)
+#class multiclass_ova(Base_multiclass):
+#    def __init__(self, kernel, C=1.0, algo='smo', max_iter=1000, cache_size = 200, tol=1.0):
+#        super().__init__(kernel, C=C, algo=algo)
+#        self.max_iter = max_iter
+#        self.cache_size = cache_size
+#        self.tol = tol
+#
+#    def fit(self, X, y):
+#        self.classes_ = set(y)
+#        classifiers = np.empty(len(self.classes_), dtype=object)
+#        for i, label in enumerate(self.classes_):
+#            print(label)
+#            if self._algo == 'smo':
+#                SVM_binary = binary_classification_smo(
+#                        kernel=self.kernel, C=self.C, max_iter=self.max_iter,
+#                        cache_size=self.cache_size, tol=self.tol)
+#            else:
+#                SVM_binary = binary_classification_qp(self.C, kernel=self.kernel, C=self.C)
+#            X_filtered, y_filtered = self._filter_dataset_by_labels(X, y, label)
+#            SVM_binary.fit(X_filtered, y_filtered)
+#            classifiers[i] = SVM_binary
+#        self.estimators_ = classifiers
+#
+#    def _filter_dataset_by_labels(self, X, y, label):
+#        class_pos_indices = (y == label)
+#        class_neg_indices = (y != label)
+#        X_filtered = X.copy()
+#        y_filtered = y.copy()
+#        y_filtered[class_pos_indices] = 1
+#        y_filtered[class_neg_indices] = -1
+#        return X_filtered, y_filtered
+#
+#    def predict(self, X):
+#        n_samples = X.shape[0]
+#        predicted_scores = np.zeros((n_samples, len(self.classes_)))
+#        for i, label in enumerate(self.classes_):
+#            print(i)
+#            predicted_scores[:,i] = self.estimators_[i].predict_value(X)
+#        return np.argmax(predicted_scores, axis=1)
