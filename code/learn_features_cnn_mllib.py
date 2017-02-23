@@ -48,7 +48,7 @@ def score(algo):
 from mllib import nn
 
 class MyNet(nn.Module):
-    def __init__(self, depth_conv2=12):
+    def __init__(self, depth_conv2=16):
         super().__init__()
         self.depth_conv2 = depth_conv2
         self.features = nn.Sequential(
@@ -63,27 +63,19 @@ class MyNet(nn.Module):
         #self.flatten = nn.Flatten()
         
         self.classifier = nn.Sequential(
-<<<<<<< Updated upstream
-                nn.Linear(12*3*3, 10)
-=======
                 nn.Linear(depth_conv2*5*5, 10)
->>>>>>> Stashed changes
         )
     def forward(self, x):
         x = self.features(x)
         #x = self.flatten(x)
-<<<<<<< Updated upstream
-        x = x.reshape(-1, 12*3*3)
-=======
         x = x.reshape(-1, self.depth_conv2*5*5)
->>>>>>> Stashed changes
         x = self.classifier(x)
         return x.reshape(x.shape[0],-1)
 
     def backward(self, output_grad):
         output_grad = self.classifier.backward(output_grad)
         #output_grad = self.flatten.backward(output_grad)
-        output_grad = output_grad.reshape(-1, 12, 3, 3)
+        output_grad = output_grad.reshape(-1, self.depth_conv2, 3, 3)
         return self.features.backward(output_grad)    
 
     def step(self, optimizer):
@@ -116,7 +108,7 @@ from mllib import optim, loss
 import timeit, pickle, json, os
 from collections import OrderedDict
 
-mynet = MyNet(12)
+mynet = MyNet(16)
 
 experience_name = '4__depth_12_random_batch'
 directory_path = 'parameters/{}/'.format(experience_name)
@@ -145,13 +137,11 @@ for epoch in range(0, 500, 1): # loop over the dataset multiple times
         # get the inputs
         inputs = X_train[i*batch_size:(i+1)*batch_size,:]
         labels = y_train[i*batch_size:(i+1)*batch_size]
-
         # zero the parameter gradients
         mynet.zero_grad()
         # forward + backward + optimize
         outputs = mynet(inputs)
         loss = criterion(outputs, labels)
-        #print(round(loss,4))
         grad = criterion.grad(outputs, labels)
         mynet.backward(grad)  
         mynet.step(optimizer)
