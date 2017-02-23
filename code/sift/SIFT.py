@@ -155,7 +155,7 @@ class Octave(object):
 		"""
 		Assign the dominant orientation of the gradient of each keypoint
 		"""
-		print("Number of keypoints: {}".format(len(self.keys)))
+		#print("Number of keypoints: {}".format(len(self.keys)))
 		compt = 0
 		new_keys = []
 		for key in self.keys:
@@ -172,10 +172,10 @@ class Octave(object):
 				compt_j = 0
 				for mj in range(-1,2):
 					#print("compt_i: {}\ncompt_j: {}".format(compt_i, compt_j))
-					current_x = k+mi
-					current_y = l+mj
-					#print("current x: {}".format(current_x))
-					#print("current y: {}".format(current_y))
+					current_x = max(0,min(k+mi,L_image.shape[0]-2))
+					current_y = max(0,min(l+mj,L_image.shape[1]-2))
+#					print("current x: {}".format(current_x))
+#					print("current y: {}".format(current_y))
 					M[compt_i, compt_j] = math.sqrt( (L_image[current_x+1, current_y] - L_image[current_x-1,current_y])**2 + (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])**2 )
 					if((L_image[current_x+1, current_y] - L_image[current_x-1, current_y]) == 0):
 						Theta[compt_i, compt_j] = 90
