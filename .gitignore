@@ -3,3 +3,4 @@ data/*.csv
 code/*.pyc
 code/__pycache__/**
 code/mllib/__pycache__/**
+code/parameters
