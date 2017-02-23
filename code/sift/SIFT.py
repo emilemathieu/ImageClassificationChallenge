@@ -336,10 +336,11 @@ def SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize):
 	Oct.rm_bkeys(t_contrast, t_edge)
 	Oct.assign_orientation()
 	Oct.generate_features(wsize)
-	Features = np.zeros(64)
+	Features = np.zeros(32)
 	for key in Oct.keys:
 		feature = key.features 
 		Features = np.concatenate((Features,feature),axis=0)
+	Features = Features[32:]
 	return Features
 
 #%%
@@ -362,7 +363,7 @@ def dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize):
         if(len(Features) == 0):
             null_list.append(index)
         X_features.append(Features)
-    print("Zero descriptor for images: {}".format(null_list))
+    print("Zero descriptor for images: {}".format(len(null_list)))
     return X_features
 
 nb_levels = 5
