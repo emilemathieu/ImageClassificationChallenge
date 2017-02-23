@@ -48,13 +48,14 @@ def score(algo):
 from mllib import nn
 
 class MyNet(nn.Module):
-    def __init__(self):
+    def __init__(self, depth_conv2=12):
         super().__init__()
+        self.depth_conv2 = depth_conv2
         self.features = nn.Sequential(
             nn.Conv2d(3, 6, 5),
             nn.ReLU(),
             nn.MaxPool2d(2,2),
-            nn.Conv2d(6, 12, 5),
+            nn.Conv2d(6, depth_conv2, 5),
             nn.ReLU(),
             nn.MaxPool2d(2,2)
         )
@@ -62,12 +63,20 @@ class MyNet(nn.Module):
         #self.flatten = nn.Flatten()
         
         self.classifier = nn.Sequential(
+<<<<<<< Updated upstream
                 nn.Linear(12*3*3, 10)
+=======
+                nn.Linear(depth_conv2*5*5, 10)
+>>>>>>> Stashed changes
         )
     def forward(self, x):
         x = self.features(x)
         #x = self.flatten(x)
+<<<<<<< Updated upstream
         x = x.reshape(-1, 12*3*3)
+=======
+        x = x.reshape(-1, self.depth_conv2*5*5)
+>>>>>>> Stashed changes
         x = self.classifier(x)
         return x.reshape(x.shape[0],-1)
 
@@ -88,8 +97,6 @@ class MyNet(nn.Module):
     def parameters(self):
         return self.features.parameters() + self.classifier.parameters()
 
-mynet = MyNet()
-
 #%% Copy weights from torch CNN
 #parameters = []
 #for parameter in net.parameters():
@@ -107,8 +114,11 @@ mynet = MyNet()
 from importlib import reload 
 from mllib import optim, loss
 import timeit, pickle, json, os
+from collections import OrderedDict
 
-experience_name = '3__depth_12_deterministic_batch'
+mynet = MyNet(12)
+
+experience_name = '4__depth_12_random_batch'
 directory_path = 'parameters/{}/'.format(experience_name)
 if not os.path.exists(directory_path):
     os.makedirs(directory_path)
@@ -122,16 +132,16 @@ N = X_train.shape[0]
 batch_size = 8
 nb_batchs = int(N / batch_size)
 
-scores = {}
+scores = OrderedDict()
 start_global = timeit.default_timer()
 optimizer.zero_grad()
-for epoch in range(0, 40, 1): # loop over the dataset multiple times
+for epoch in range(0, 500, 1): # loop over the dataset multiple times
     
     running_loss = 0.0
     start = timeit.default_timer()
     
-    for i in range(nb_batchs):
-    #for i in np.random.permutation(nb_batchs):
+    #for i in range(nb_batchs):
+    for i in np.random.permutation(nb_batchs):
         # get the inputs
         inputs = X_train[i*batch_size:(i+1)*batch_size,:]
         labels = y_train[i*batch_size:(i+1)*batch_size]
@@ -165,18 +175,19 @@ with open('{}/scores.json'.format(directory_path), 'w') as outfile:
 print('Finished Training | {} seconds'.format(round(timeit.default_timer() - start_global, 2)))
 
 #%%
-#for i in range(0,0,20):
+#mynet = MyNet(16)
+#for i in range(0,280,20):
 #    print(i)
-i=0
-parameters = pickle.load(open( "parameters/mynet_parameters_{}.p".format(i), "rb" ))
-mynet.features._modules[0]._weight = parameters[0].copy()
-mynet.features._modules[0]._bias = parameters[1].copy()
-mynet.features._modules[3]._weight = parameters[2].copy()
-mynet.features._modules[3]._bias = parameters[3].copy()
-mynet.classifier._modules[0]._weight = parameters[4].copy()
-mynet.classifier._modules[0]._bias = parameters[5].copy()
-
-score(mynet)
+##i=0
+#    parameters = pickle.load(open( "parameters/1/mynet_parameters_{}.p".format(i), "rb" ))
+#    mynet.features._modules[0]._weight = parameters[0].copy()
+#    mynet.features._modules[0]._bias = parameters[1].copy()
+#    mynet.features._modules[3]._weight = parameters[2].copy()
+#    mynet.features._modules[3]._bias = parameters[3].copy()
+#    mynet.classifier._modules[0]._weight = parameters[4].copy()
+#    mynet.classifier._modules[0]._bias = parameters[5].copy()
+#
+#    print(score(mynet))
 #%%
 import pandas as pd
 
@@ -189,4 +200,4 @@ for i in range(nb_batchs):
     outputs = mynet.features(inputs)
     X_features[i*batch_size:(i+1)*batch_size, :] = outputs.reshape(-1,16*5*5)
 
-pd.DataFrame(X_features).to_csv('../data/Xtr_features_mycnn.csv',header=False, index=False)
+pd.DataFrame(X_features).to_csv('../data/Xtr_features_mycnn_1.csv',header=False, index=False)
