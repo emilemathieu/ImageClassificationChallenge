@@ -381,7 +381,7 @@ sigma = 1. / math.sqrt(2)
 t_contrast = 0
 t_edge = 10
 wsize = 8
-X_SIFT = dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize)
+#X_SIFT = dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize)
         
 
 
