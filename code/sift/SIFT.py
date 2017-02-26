@@ -12,6 +12,7 @@ import doctest
 import math
 import scipy.ndimage.filters as filters
 from PIL import Image 
+from astropy.convolution import convolve, Gaussian2DKernel
 
 
 def resample2(image):
@@ -77,7 +78,11 @@ class Octave(object):
 		"""
 		octave = np.ones((self.image.shape[0],self.image.shape[1],self.nb_levels))
 		for i in range(self.nb_levels):
-			octave[:,:,i] = filters.gaussian_filter(self.image, i * self.k * self.sigma)
+			gkernel = Gaussian2DKernel(stddev=math.sqrt((self.k**i) * self.sigma), x_size=3, y_size=3)
+			plt.figure()
+			plt.imshow(gkernel)
+			#octave[:,:,i] = filters.gaussian_filter(self.image, i * self.k * self.sigma)
+			octave[:,:,i] = convolve(self.image,gkernel)
 		self.octave = octave
 
 	def log_approx(self):
@@ -155,7 +160,7 @@ class Octave(object):
 		"""
 		Assign the dominant orientation of the gradient of each keypoint
 		"""
-		print("Number of keypoints: {}".format(len(self.keys)))
+		#print("Number of keypoints: {}".format(len(self.keys)))
 		compt = 0
 		new_keys = []
 		for key in self.keys:
@@ -172,10 +177,10 @@ class Octave(object):
 				compt_j = 0
 				for mj in range(-1,2):
 					#print("compt_i: {}\ncompt_j: {}".format(compt_i, compt_j))
-					current_x = k+mi
-					current_y = l+mj
-					#print("current x: {}".format(current_x))
-					#print("current y: {}".format(current_y))
+					current_x = max(0,min(k+mi,L_image.shape[0]-2))
+					current_y = max(0,min(l+mj,L_image.shape[1]-2))
+#					print("current x: {}".format(current_x))
+#					print("current y: {}".format(current_y))
 					M[compt_i, compt_j] = math.sqrt( (L_image[current_x+1, current_y] - L_image[current_x-1,current_y])**2 + (L_image[current_x, current_y+1] - L_image[current_x, current_y-1])**2 )
 					if((L_image[current_x+1, current_y] - L_image[current_x-1, current_y]) == 0):
 						Theta[compt_i, compt_j] = 90
@@ -336,7 +341,44 @@ def SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize):
 	Oct.rm_bkeys(t_contrast, t_edge)
 	Oct.assign_orientation()
 	Oct.generate_features(wsize)
-	return Oct.keys
+	Features = np.zeros(32)
+	for key in Oct.keys:
+		feature = key.features 
+		Features = np.concatenate((Features,feature),axis=0)
+	Features = Features[32:]
+	return Features
+
+#%%
+X = pd.read_csv('../../data/Xtr.csv', header=None)
+X = X.as_matrix()
+X = X[:, 0:-1]
+
+def dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize):
+    X_features = []
+    null_list = []
+    for index in range(X.shape[0]):
+        print("Sample #{}".format(index))
+        image = X[index,:]
+        image = image.reshape((3, 32*32))
+        image = image.reshape((3, 32, 32))
+        image = image.swapaxes(0,1)
+        image = image.swapaxes(1,2)
+        Features = SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize)
+        print("Features: {}".format(len(Features)))
+        if(len(Features) == 0):
+            null_list.append(index)
+        X_features.append(Features)
+    print("Zero descriptor for images: {}".format(len(null_list)))
+    return X_features
+
+nb_levels = 5
+k = 1.1
+sigma = 1. / math.sqrt(2)
+t_contrast = 1.2
+t_edge = 10
+wsize = 8
+#X_SIFT = dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize)
+        
 
 
 

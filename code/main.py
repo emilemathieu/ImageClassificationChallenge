@@ -4,7 +4,8 @@
 import numpy as np
 import pandas as pd
 import datetime
-import simple_histogram as sh
+#import simple_histogram as sh
+#from sift import SIFT
 
 #%% Transform to greyscale function
 
@@ -25,7 +26,7 @@ IMAGE_SIZE = 32
 CHANEL_SIZE = IMAGE_SIZE * IMAGE_SIZE
 
 #X_full = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
-X_cnn_features = pd.read_csv('../data/Xtr_features_cnn.csv', header=None).as_matrix()
+X_cnn_features = pd.read_csv('../data/Xtr_features_mycnn.csv', header=None).as_matrix()
 #X_augmented = pd.read_csv('../data/augmented_X.csv',header=None).as_matrix()
 #X_final = np.concatenate((X_full,X_augmented),axis=0)
 
@@ -38,8 +39,8 @@ X_multi = X_cnn_features
 #X_multi = rgb_to_greyscale(X_full)
 Y_multi = Y_full
 N = len(Y_multi)
-X_histo = sh.simple_histogram(X_full)
-Y_histo = Y_full
+#X_histo = sh.simple_histogram(X_full)
+#Y_histo = Y_full
 
 #%% Select classifiers
 
