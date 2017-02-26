@@ -1,7 +1,7 @@
 from .svm import (
     binary_classification_qp,
     binary_classification_smo,
-    multiclass_ova,
+    #multiclass_ova,
     multiclass_ovo,
     Kernel
 )

@@ -33,6 +33,10 @@ Oct = SIFT.Octave(image, nb_levels, k, sigma)
 #%%
 print("Build octave")
 Oct.build_octave()
+for i in range(nb_levels):
+    plt.figure()
+    plt.imshow(Oct.octave[:,:,i],cmap='gray')
+    plt.title("scale {}".format(i))
 #%%
 print("Log approximation")
 Oct.log_approx()

@@ -12,6 +12,7 @@ import doctest
 import math
 import scipy.ndimage.filters as filters
 from PIL import Image 
+from astropy.convolution import convolve, Gaussian2DKernel
 
 
 def resample2(image):
@@ -77,7 +78,11 @@ class Octave(object):
 		"""
 		octave = np.ones((self.image.shape[0],self.image.shape[1],self.nb_levels))
 		for i in range(self.nb_levels):
-			octave[:,:,i] = filters.gaussian_filter(self.image, i * self.k * self.sigma)
+			gkernel = Gaussian2DKernel(stddev=math.sqrt((self.k**i) * self.sigma), x_size=3, y_size=3)
+			plt.figure()
+			plt.imshow(gkernel)
+			#octave[:,:,i] = filters.gaussian_filter(self.image, i * self.k * self.sigma)
+			octave[:,:,i] = convolve(self.image,gkernel)
 		self.octave = octave
 
 	def log_approx(self):
@@ -372,7 +377,7 @@ sigma = 1. / math.sqrt(2)
 t_contrast = 1.2
 t_edge = 10
 wsize = 8
-X_SIFT = dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize)
+#X_SIFT = dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize)
         
 
 
