@@ -40,6 +40,10 @@ for i in range(nb_levels):
 #%%
 print("Log approximation")
 Oct.log_approx()
+for i in range(nb_levels-1):
+    plt.figure()
+    plt.imshow(Oct.DOG[:,:,i],cmap='gray')
+    plt.title("DOG {}".format(i))
 #%%
 print("Extrema")
 Oct.find_extrema()

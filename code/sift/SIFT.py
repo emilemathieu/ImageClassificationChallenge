@@ -105,6 +105,7 @@ class Octave(object):
 			DOG: the difference of gaussians function
 		"""
 		DOG = self.DOG
+		compt_keys = 0
 		for k in range(1, int(DOG.shape[2])-1):
 			for i in range(1, int(DOG.shape[0]) - 1):
 				for j in range(1, int(DOG.shape[1]) - 1):
@@ -117,9 +118,12 @@ class Octave(object):
 					if(sample == np.max(N)):
 						key = keypoint(i, j, (k-1)*self.sigma)
 						self.keys.append(key)
+						compt_keys += 1
 					elif(sample == np.min(N)):
 						key = keypoint(i, j, (k-1)*self.sigma)
 						self.keys.append(key)
+						compt_keys += 1
+		#print("Number of extremas: {}".format(compt_keys))
 
 	def rm_bkeys(self, threshold_contrast, threshold_edge):
 		"""
@@ -131,12 +135,7 @@ class Octave(object):
 		new_keys = []
 		for key in self.keys:
 			DOG_image = self.DOG[:,:,int(key.scale / self.sigma)]
-
-			## Remove low constrasts
-			if(DOG_image[key.x, key.y] < threshold_contrast):
-				new_keys.append(key)
-
-			## Remove edges
+			## Remove edges and contrast
 			k = key.x
 			l = key.y
 			H = np.zeros((2,2))
@@ -152,9 +151,12 @@ class Octave(object):
 			trH = np.trace(H)
 			detH = np.linalg.det(H)
 			## Test on the ratio
-			if((trH**2 / detH) < ((threshold_edge + 1)**2 / threshold_edge)):
+			#print("Edge: {} | thresh: {}".format(trH**2 / detH, (threshold_edge + 1)**2 / threshold_edge))
+			#print("Contrast: {} | thresh: {}".format(abs(DOG_image[key.x, key.y]), threshold_contrast))
+			if(((trH**2 / detH) < ((threshold_edge + 1)**2 / threshold_edge)) and (abs(DOG_image[key.x, key.y]) > threshold_contrast)):
 				new_keys.append(key)
 		self.keys = new_keys
+		#print("Number after removal: {}".format(len(self.keys)))
 
 	def assign_orientation(self):
 		"""
@@ -189,7 +191,8 @@ class Octave(object):
 					compt_j += 1
 				compt_i += 1
 			## Blur the magnitude matrix
-			M = filters.gaussian_filter(M, 1.5 * self.sigma)
+			gkernel = Gaussian2DKernel(stddev=math.sqrt(1.5*self.sigma),x_size=3,y_size=3)
+			M = convolve(M, gkernel)
 			## Build a histogram
 			H = np.zeros((36,1))
 			M = M.flatten()
@@ -341,11 +344,11 @@ def SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize):
 	Oct.rm_bkeys(t_contrast, t_edge)
 	Oct.assign_orientation()
 	Oct.generate_features(wsize)
-	Features = np.zeros(32)
+	Features = np.array([])
 	for key in Oct.keys:
 		feature = key.features 
 		Features = np.concatenate((Features,feature),axis=0)
-	Features = Features[32:]
+	#Features = Features[32:]
 	return Features
 
 #%%
@@ -365,6 +368,7 @@ def dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize):
         image = image.swapaxes(1,2)
         Features = SIFT_descriptor(image, nb_levels, k, sigma, t_contrast, t_edge, wsize)
         print("Features: {}".format(len(Features)))
+        #input("Press enter to continue...")
         if(len(Features) == 0):
             null_list.append(index)
         X_features.append(Features)
@@ -374,7 +378,7 @@ def dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize):
 nb_levels = 5
 k = 1.1
 sigma = 1. / math.sqrt(2)
-t_contrast = 1.2
+t_contrast = 0
 t_edge = 10
 wsize = 8
 #X_SIFT = dataset_SIFT(X,nb_levels,k,sigma,t_contrast,t_edge,wsize)
