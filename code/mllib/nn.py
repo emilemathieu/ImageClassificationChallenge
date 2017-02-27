@@ -135,11 +135,46 @@ class Linear(Module):
         self._grad_weight = np.dot(output_grad.T, self._last_input)
         return np.dot(output_grad, self._weight)
     
+class BatchNorm2d(Module):
+    def __init__(self,in_features):
+        self.in_features = in_features
+        self._weight = np.random.uniform(size=in_features)
+        self._bias = np.zeros(in_features)
+        self.eps = 0.04 #10/255
+        self.momentum = 0.1
+        self._mu = None
+        self._sigma2 = None
+    def forward(self, X):
+        self._last_input = X
+        N, D, H, W = X.shape
+        mu = 1/N*np.sum(X,axis =0) # Size (H,)
+        if self._mu is not None:
+            mu = (1 - self.momentum) * mu + self.momentum * self._mu
+        self._mu = mu
+        sigma2 = 1/N*np.sum((X-mu)**2,axis=0)# Size (H,) 
+        if self._sigma2 is not None:
+            sigma2 = (1 - self.momentum) * sigma2 + self.momentum * self._sigma2
+        self._sigma2 = sigma2
+        hath = (X-mu)*(sigma2+self.eps)**(-1./2.)
+        res = np.tile(self._weight, (H,W,1)).swapaxes(0,2) * hath
+        return res + np.tile(self._bias, (H,W,1)).swapaxes(0,2)
+
+    def backward(self, output_grad):
+        N, D, H, W = output_grad.shape
+        weight_big = np.tile(self._weight, (H,W,1)).swapaxes(0,2)
+        dy = output_grad
+        h = self._last_input
+        mu = self._mu
+        var = self._sigma2
+        self._grad_bias = np.sum(dy, axis=(0,2,3))
+        self._grad_weight = np.sum((h - mu) * (var + self.eps)**(-1. / 2.) * dy, axis=(0,2,3))
+        return (1. / N) * weight_big * (var + self.eps)**(-1. / 2.) * (N * dy - np.sum(dy, axis=0)
+            - (h - mu) * (var + self.eps)**(-1.0) * np.sum(dy * (h - mu), axis=0))
+    
 class Flatten(Module):
     def forward(self, X):
         self._X_shape = X.shape
-        N = X.shape[0]
-        return X.reshape(N, -1)
+        return X.reshape(X.shape[0], -1)
 
     def backward(self, output_grad):
         return output_grad.reshape(self._X_shape)
@@ -163,18 +198,18 @@ class Sequential(Module):
 
     def step(self, optimizer):
         for module in self._modules:
-            if isinstance(module, Linear) or isinstance(module, Conv2d):
+            if isinstance(module, Linear) or isinstance(module, Conv2d) or isinstance(module, BatchNorm2d):
                 module.step(optimizer)
 
     def zero_grad(self):
         for module in self._modules:
-            if isinstance(module, Linear) or isinstance(module, Conv2d):
+            if isinstance(module, Linear) or isinstance(module, Conv2d) or isinstance(module, BatchNorm2d):
                 module.zero_grad()
 
     def parameters(self):
         parameters = []
         for module in self._modules:
-            if isinstance(module, Linear) or isinstance(module, Conv2d):
+            if isinstance(module, Linear) or isinstance(module, Conv2d) or isinstance(module, BatchNorm2d):
                 parameters.append(module._weight)
                 parameters.append(module._bias)
         return parameters
