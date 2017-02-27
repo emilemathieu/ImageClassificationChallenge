@@ -9,7 +9,7 @@ Created on Mon Feb 13 11:33:30 2017
 #import cvxopt
 import numpy as np
 import itertools
-from scipy.stats import mode
+#from scipy.stats import mode
 from collections import OrderedDict
 from sklearn.svm import SVC
 
@@ -84,7 +84,7 @@ class Kernel(object):
     def rbf(gamma):
         # TODO: Compute automatically sigma= 1/n_features
         def f(x, y):
-            exponent = -np.sqrt(np.linalg.norm(x-y) ** 2 / (2 * gamma ** 2))
+            exponent = - gamma * np.linalg.norm(x-y) ** 2
             return np.exp(exponent)
         return f
 
