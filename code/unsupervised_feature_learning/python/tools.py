@@ -73,8 +73,48 @@ def whiten(patches,eps_zca):
     patches = np.dot((patches.transpose() - M).transpose(),P)
     return patches
     
-def Kmeans():
-    raise NotImplementedError
+def Kmeans(patches,nb_centroids,nb_iter):
+    x2 = patches**2
+    x2 = np.sum(x2,axis=1)
+    x2 = x2.reshape((len(x2),1))
+    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1
+    sbatch = 1000
+    
+    for i in range(nb_iter):
+        print("K-means: {} / {} iterations".format(i,nb_iter))
+        c2 = 0.5 * np.sum(centroids**2,axis=1)
+        c2 = c2.reshape((len(c2),1))
+        sum_k = np.zeros((nb_centroids,patches.shape[1]))
+        compt = np.zeros(nb_centroids)
+        compt = compt.reshape((len(compt),1))
+        loss = 0
+        for j in range(0,sbatch,patches.shape[0]):
+            last = min(j+sbatch,patches.shape[0])
+            m = last - j
+#            print("m {}".format(m))
+#            input("Keep going...")
+            diff = np.dot(centroids,patches[i:last,:].transpose()) - c2
+            labels = np.argmax(diff,axis=0)
+            max_value = np.max(diff,axis=0)
+            loss += np.sum(0.5*x2[i:last,:] - max_value)
+            S = np.zeros((m,nb_centroids))
+#            print("labels {}".format(labels.shape))
+#            print("S {}".format(S.shape))
+#            input("Keep going...")
+            for ind in range(m):
+#                print("ind {}".format(ind))
+                S[ind,labels[ind]] = 1    
+            sum_k += np.dot(S.transpose(),patches[i:last,:])
+            sumS = np.sum(S,axis=0)
+            sumS = sumS.reshape((len(sumS),1))
+#            print("compt {}".format(compt.shape))
+#            print("sumS {}".format(sumS.shape))
+            compt += sumS
+        centroids = np.divide(sum_k,compt)
+        badCentroids = np.where(compt == 0)
+        centroids[tuple(badCentroids),:] = 0
+    return centroids
+                
 
 def extract_features():
     raise NotImplementedError
