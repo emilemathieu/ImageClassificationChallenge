@@ -54,7 +54,8 @@ class Module(object):
         self._grad_weight = None
 
 class ReLU(Module):
-    """ Rectifier Linear Unit
+    """ Applies the rectified linear unit function element-wise ReLu(x) = max(0,x)
+    Non-linear Activation layer
     """
     def func(self, X):
          return np.maximum(X, 0)
@@ -67,7 +68,13 @@ class ReLU(Module):
         return output_grad * self.func(self._last_input)
 
 class MaxPool2d(Module):
-    """ Polling layer implementing the maximum operation
+    """ Applies a 2D max pooling over an input signal composed of several input planes.
+    Parameters
+    ----------
+    kernel_size : int
+        The size of the window to take a max over
+    stride : int
+        The stride of the window
     """
     def __init__(self,kernel_size,stride=2):
          # TODO: add padding ?
@@ -88,7 +95,6 @@ class MaxPool2d(Module):
          res = X_col[max_idx, range(max_idx.size)]
          res = res.reshape(h_out, w_out, N, d)
          res = res.transpose(2, 3, 0, 1)
-
 #         res = np.empty((N, d, h_out, w_out))
 #         for i, x in enumerate(X):
 #             res[i,:] = np.max([x[:,(i>>1)&1::2,i&1::2] for i in range(4)],axis=0) #fastest
@@ -105,7 +111,25 @@ class MaxPool2d(Module):
         return dX.reshape(self._X_shape)
 
 class Conv2d(Module):
-    """ Convolutional layer
+    """ Applies a 2D convolution over an input signal composed of several input planes.
+    Parameters
+    ----------
+    in_channels : int
+        Number of channels in the input image
+    out_channels : int
+        Number of channels produced by the convolution
+    kernel_size : int
+        Size of the convolving kernel
+    stride : int, optional (default=1)
+        Stride of the convolution
+    padding : int, optional (default=0)
+        Zero-padding added to both sides of the input
+    Variables
+    ----------
+    weight : array-like, shape = [out_channels, in_channels, kernel_size, kernel_size]
+        the learnable weights of the module
+    bias : array-like, shape = [out_channels]
+        the learnable bias of the module
     """
     def __init__(self,in_channels, out_channels, kernel_size, stride=1, padding=0):
          self._in_channels = in_channels
@@ -154,7 +178,19 @@ class Conv2d(Module):
         return col2im_indices(dX_col, self._X_shape, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
 
 class Linear(Module):
-    """ Linear (affine) layer
+    """ Applies a linear transformation to the incoming data: y=Ax+b
+    Parameters
+    ----------
+    in_features : int
+        size of each input sample
+    out_features : int
+        size of each output sample
+    Variables
+    ----------
+    weight : array-like, shape = [out_features x in_features]
+        the learnable weights of the module
+    bias : array-like, shape = [out_features]
+        the learnable bias of the module
     """
     def __init__(self,in_features, out_features):
         self._in_features = in_features
@@ -173,17 +209,32 @@ class Linear(Module):
         return np.dot(output_grad, self._weight)
     
 class BatchNorm2d(Module):
-    """ Batch normalization layer
+    """ Applies Batch Normalization over a 4d input that is seen as a mini-batch of 3d inputs
     Useful to speed up the learning
     See http://cthorey.github.io./backpropagation/
     or https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
+    Parameters
+    ----------
+    num_features : int
+        num_features from an expected input of size batch_size x num_features x height x width
+    eps : float, optional (default=0.04)
+        a value added to the denominator for numerical stability
+    momentum : float, optional (default=0.1)
+        the value used for the running_mean and running_var computation. 
+    Variables
+    ----------
+    weight : array-like, shape = [num_features]
+        the learnable weights of the module
+    bias : array-like, shape = [num_features]
+        the learnable bias of the module
+
     """
-    def __init__(self,in_features):
+    def __init__(self, in_features, eps=0.04, momentum=0.1):
         self.in_features = in_features
         self._weight = np.random.uniform(size=in_features)
         self._bias = np.zeros(in_features)
-        self.eps = 0.04 #10/255
-        self.momentum = 0.1
+        self.eps = eps #10/255
+        self.momentum = momentum
         self._mu = None
         self._sigma2 = None
     def forward(self, X):
