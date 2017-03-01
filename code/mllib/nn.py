@@ -9,22 +9,53 @@ from .im2col import im2col_indices, col2im_indices
 import numpy as np
 
 class Module(object):
-     def forward(self, X):
-         raise NotImplementedError()
-     def __call__(self, X):
-         return self.forward(X)
-     def backward(self, x):
-         raise NotImplementedError()
+    """ Base class for neural network's layers
+    """
+    def forward(self, X):
+        """ Apply the layer function to the input data
+        Parameters
+        ----------
+        X : array-like, shape = [n_samples, depth_in, height_in, width_in]
+        Returns
+        -------
+        transformed data : array-like, shape = [n_samples, depth_out, height_out, width_out]
+        """
+        raise NotImplementedError()
 
-     def step(self, optimizer):
-         self._bias = optimizer(id(self), 'bias', self._bias, self._grad_bias)
-         self._weight = optimizer(id(self), 'weight', self._weight, self._grad_weight)
+    def __call__(self, X):
+        return self.forward(X)
 
-     def zero_grad(self):
-         self._grad_bias = None
-         self._grad_weight = None
+    def backward(self, output_grad):
+        """ Compute the gradient of the loss with respect to its parameters and to its input
+        Parameters
+        ----------
+        output_grad : array-like, shape = [n_samples, depth_out, height_out, width_out]
+                      gradient returned by the above layer.
+        Returns
+        -------
+        gradient : array-like, shape = [n_samples, depth_in, height_in, width_in]
+                   gradient to be forwarded to bottom layers
+        """
+        raise NotImplementedError()
+
+    def step(self, optimizer):
+        """ Do an optimization step in the direction given by the optimizer
+        Parameters
+        ----------
+        optimizer : instance of Optimizer
+        """
+        self._bias = optimizer(id(self), 'bias', self._bias, self._grad_bias)
+        self._weight = optimizer(id(self), 'weight', self._weight, self._grad_weight)
+
+    def zero_grad(self):
+        """ Reset gradient of the layer's parameters
+        """
+        self._grad_bias = None
+        self._grad_weight = None
 
 class ReLU(Module):
+    """ Rectifier Linear Unit
+    """
     def func(self, X):
          return np.maximum(X, 0)
 
@@ -36,6 +67,8 @@ class ReLU(Module):
         return output_grad * self.func(self._last_input)
 
 class MaxPool2d(Module):
+    """ Polling layer implementing the maximum operation
+    """
     def __init__(self,kernel_size,stride=2):
          # TODO: add padding ?
          self._kernel_size = kernel_size
@@ -72,6 +105,8 @@ class MaxPool2d(Module):
         return dX.reshape(self._X_shape)
 
 class Conv2d(Module):
+    """ Convolutional layer
+    """
     def __init__(self,in_channels, out_channels, kernel_size, stride=1, padding=0):
          self._in_channels = in_channels
          self._out_channels = out_channels
@@ -119,6 +154,8 @@ class Conv2d(Module):
         return col2im_indices(dX_col, self._X_shape, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
 
 class Linear(Module):
+    """ Linear (affine) layer
+    """
     def __init__(self,in_features, out_features):
         self._in_features = in_features
         self._out_features = out_features
@@ -136,6 +173,11 @@ class Linear(Module):
         return np.dot(output_grad, self._weight)
     
 class BatchNorm2d(Module):
+    """ Batch normalization layer
+    Useful to speed up the learning
+    See http://cthorey.github.io./backpropagation/
+    or https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
+    """
     def __init__(self,in_features):
         self.in_features = in_features
         self._weight = np.random.uniform(size=in_features)
@@ -172,6 +214,8 @@ class BatchNorm2d(Module):
             - (h - mu) * (var + self.eps)**(-1.0) * np.sum(dy * (h - mu), axis=0))
     
 class Flatten(Module):
+    """ Flatten a multi-dimensional tensor to a 1 dimensional vector
+    """
     def forward(self, X):
         self._X_shape = X.shape
         return X.reshape(X.shape[0], -1)
@@ -180,6 +224,8 @@ class Flatten(Module):
         return output_grad.reshape(self._X_shape)
 
 class Sequential(Module):
+    """ Special instance of neural network which can be constructed as a sequence of layers
+    """
     def __init__(self, *modules):
         self._modules = list(modules)
 
@@ -196,25 +242,32 @@ class Sequential(Module):
             output_grad = module.backward(output_grad)
         return output_grad
 
+    def has_parameters(self, module):
+        if isinstance(module, Linear) or isinstance(module, Conv2d) or isinstance(module, BatchNorm2d):
+            return True
+        else:
+            return False
+
     def step(self, optimizer):
         for module in self._modules:
-            if isinstance(module, Linear) or isinstance(module, Conv2d) or isinstance(module, BatchNorm2d):
+            if self.has_parameters(module):
                 module.step(optimizer)
 
     def zero_grad(self):
         for module in self._modules:
-            if isinstance(module, Linear) or isinstance(module, Conv2d) or isinstance(module, BatchNorm2d):
+            if self.has_parameters(module):
                 module.zero_grad()
 
     def parameters(self):
         parameters = []
         for module in self._modules:
-            if isinstance(module, Linear) or isinstance(module, Conv2d) or isinstance(module, BatchNorm2d):
+             if self.has_parameters(module):
                 parameters.append(module._weight)
                 parameters.append(module._bias)
         return parameters
 
 class Variable(object):
     def __init__(self, data=None):
+        raise NotImplementedError()
         self.data = data
         self.grad = None
