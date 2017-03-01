@@ -5,32 +5,34 @@
 %        ['You need to modify kmeans_demo.m so that CIFAR_DIR points to ' ...
 %         'your cifar-10-batches-mat directory.  You can download this ' ...
 %         'data from:  http://www.cs.toronto.edu/~kriz/cifar-10-matlab.tar.gz']);
-
+clear;clc;
 %% Configuration
 addpath minFunc;
 rfSize = 6;
-%numCentroids=1600; % ORIGINAL PAPER VALUE
-numCentroids=1600/5/10*3; % TO BE TUNED
+numCentroids=1600; % ORIGINAL PAPER VALUE
+%numCentroids=1600/5/10*3; % TO BE TUNED
 whitening=true;
-%numPatches = 400000; % ORIGINAL PAPER VALUE
-numPatches = 400000/5/10*3; % TO BE TUNED
+numPatches = 10000; % ORIGINAL PAPER VALUE
+%numPatches = 400000/5/10*3; % TO BE TUNED
 CIFAR_DIM=[32 32 3];
 
 %%
-X = csvread('../Kernel_Challenge/data/Xtr.csv');
+X = csvread('../../../data/Xtr.csv');
 X = double(X(:,1:end-1));
 % RESCALE DATA
 X = X + abs(min(X(:)));
 X = X * (255 / max(X(:)));
 X = round(X);
 %% COPY "Ytr.csv" FILE, DELETE HEADER AND RENAME IT "Ytr_wo_header.csv"
-Y = csvread('../Kernel_Challenge/data/Ytr_wo_header.csv');
+Y = csvread('../../../data/Ytr_wo_header.csv');
 Y = double(Y(:,2) + 1); %% LABELS TO BE IN (1,10); NO IDEA WHY
 
 %% Load CIFAR training data
 fprintf('Loading training data...\n');
 trainX = X(1:3000,:);
 trainY = Y(1:3000);
+testY = Y(3001:end);
+testX = X(3001:end,:);
 %f1=load([CIFAR_DIR '/data_batch_1.mat']);
 %f2=load([CIFAR_DIR '/data_batch_2.mat']);
 %f3=load([CIFAR_DIR '/data_batch_3.mat']);
@@ -50,11 +52,10 @@ for i=1:numPatches
   
   r = random('unid', CIFAR_DIM(1) - rfSize + 1);
   c = random('unid', CIFAR_DIM(2) - rfSize + 1);
-  patch = reshape(trainX(mod(i-1,size(trainX,1))+1, :), CIFAR_DIM);
+  patch = reshape(testX(mod(i-1,size(testX,1))+1, :), CIFAR_DIM);
   patch = patch(r:r+rfSize-1,c:c+rfSize-1,:);
   patches(i,:) = patch(:)';
 end
-
 % normalize for contrast
 patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
 
