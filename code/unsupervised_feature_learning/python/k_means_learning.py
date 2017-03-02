@@ -4,6 +4,9 @@ Created on Wed Mar  1 16:16:54 2017
 
 @author: Thomas PESNEAU
 """
+import os
+path = "C:\\Users\\Thomas\\Desktop\\MVA 2016-2017\\2eme semestre\\Kernel methods for Machine learning\\Project\\kernel_challenge\\code\\unsupervised_feature_learning\\python"
+os.chdir(path)
 import pandas as pd
 import numpy as np
 import tools
@@ -43,12 +46,12 @@ patches = tools.extract_random_patches(X_test,nb_patches,rfSize,dim)
 patches = tools.pre_process(patches,eps=10)
 
 if(whitening):
-    patches = tools.whiten(patches,eps_zca=0.1)
-    
+    patches,M,P = tools.whiten(patches,eps_zca=0.1)
+#%%    
 centroids = tools.Kmeans(patches,nb_centroids,nb_iter=50)
-
-X_feat = tools.extract_features()
-
+#%%
+X_feat = tools.extract_features(X_train,centroids,rfSize,dim,M,P)
+#%%
 X_feat = tools.standard(X_feat)
 
 #%% Export features

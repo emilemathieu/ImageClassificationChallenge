@@ -7,6 +7,7 @@ TOOL FUNCTIONS FOR FEATURE EXTRACTION
 """
 import numpy as np
 import random
+import time
 
 def extract_random_patches(X,nb_patches,rfSize,dim):
     """
@@ -71,55 +72,58 @@ def whiten(patches,eps_zca):
     D_zca = np.diag(D_zca)
     P = np.dot(V,np.dot(D_zca,V.transpose()))
     patches = np.dot((patches.transpose() - M).transpose(),P)
-    return patches
+    return patches,M,P
     
 def Kmeans(patches,nb_centroids,nb_iter):
     x2 = patches**2
     x2 = np.sum(x2,axis=1)
     x2 = x2.reshape((len(x2),1))
-    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1
+    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
     sbatch = 1000
     
     for i in range(nb_iter):
         print("K-means: {} / {} iterations".format(i,nb_iter))
         c2 = 0.5 * np.sum(centroids**2,axis=1)
         c2 = c2.reshape((len(c2),1))
-        sum_k = np.zeros((nb_centroids,patches.shape[1]))
-        compt = np.zeros(nb_centroids)
+        sum_k = np.zeros((nb_centroids,patches.shape[1]))## dictionnary of patches
+        compt = np.zeros(nb_centroids)## number of samples per clusters
         compt = compt.reshape((len(compt),1))
         loss = 0
+        ## Batch update
         for j in range(0,sbatch,patches.shape[0]):
             last = min(j+sbatch,patches.shape[0])
             m = last - j
-#            print("m {}".format(m))
-#            input("Keep going...")
-            diff = np.dot(centroids,patches[i:last,:].transpose()) - c2
-            labels = np.argmax(diff,axis=0)
-            max_value = np.max(diff,axis=0)
-            loss += np.sum(0.5*x2[i:last,:] - max_value)
+            diff = np.dot(centroids,patches[j:last,:].transpose()) - c2## difference of distances
+            labels = np.argmax(diff,axis=0)## index of the centroid for each sample
+            max_value = np.max(diff,axis=0)## maximum value for each sample
+            loss += np.sum(0.5*x2[j:last,:] - max_value)
             S = np.zeros((m,nb_centroids))
-#            print("labels {}".format(labels.shape))
-#            print("S {}".format(S.shape))
-#            input("Keep going...")
+            ## Put the label of each sample in a sparse indicator matrix
+            ## S(i,labels(i)) = 1, 0 elsewhere
             for ind in range(m):
-#                print("ind {}".format(ind))
                 S[ind,labels[ind]] = 1    
-            sum_k += np.dot(S.transpose(),patches[i:last,:])
+            sum_k += np.dot(S.transpose(),patches[j:last,:])## update the dictionnary
             sumS = np.sum(S,axis=0)
             sumS = sumS.reshape((len(sumS),1))
-#            print("compt {}".format(compt.shape))
-#            print("sumS {}".format(sumS.shape))
-            compt += sumS
-        centroids = np.divide(sum_k,compt)
-        badCentroids = np.where(compt == 0)
-        centroids[tuple(badCentroids),:] = 0
+            compt += sumS## update the number of samples per centroid in the batch
+            
+        centroids = np.divide(sum_k,compt)## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
+                                          ## this situation is dealt with in the two following lines  
+        badCentroids = np.where(compt == 0)## Find the indices of empty clusters
+        centroids[tuple(badCentroids),:] = 0## in the case where a cluster is empty, set the centroid to 0 to avoid NaNs
     return centroids
                 
 
-def extract_features():
-    raise NotImplementedError
+def extract_features(X,centroids,rfSize,dim,*args):
+    ## Check number of inputs
+    if(args):
+        print("Optional arguments received")
+    else:
+        print("No optional arguments")
+    
     
 def standard():
     raise NotImplementedError
+    
 
 
