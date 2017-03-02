@@ -7,7 +7,6 @@ function XC = extract_features(X, centroids, rfSize, CIFAR_DIM, M,P)
   XC = zeros(size(X,1), numCentroids*4);
   for i=1:size(X,1)
     if (mod(i,1000) == 0) fprintf('Extracting features: %d / %d\n', i, size(X,1)); end
-    
     % extract overlapping sub-patches into rows of 'patches'
     patches = [ im2col(reshape(X(i,1:1024),CIFAR_DIM(1:2)), [rfSize rfSize]) ;
                 im2col(reshape(X(i,1025:2048),CIFAR_DIM(1:2)), [rfSize rfSize]) ;

@@ -115,6 +115,18 @@ def Kmeans(patches,nb_centroids,nb_iter):
                 
 
 def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
+    """
+    Extract the features of an input image based on the centroids
+    -------------
+    Parameters:
+        X: numpy array, nb_samples x nb_elements
+        centroids: numpy array, nb_centroids x size_patch
+        rfSize: size of a patch
+        dim: dimension of images in the dataset
+        stride: step between each patch
+        eps: normalization constant
+        *args: optional arguments for whitening
+    """
     ## Check number of inputs
     nb_centroids = centroids.shape[0]
     nb_samples = X.shape[0]
@@ -176,8 +188,23 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
     return Features
         
     
-def standard():
-    raise NotImplementedError
+def standard(X):
+    """
+    Subtract the mean to each row and divide by the standard deviation
+    ---------------
+    Parameters:
+        X: multidimensional numpy array
+    """
+    mean = np.mean(X,axis=0)
+    var = np.var(X,axis=0)+0.01
+    var = np.sqrt(var)
+    X_standard = X.transpose() - mean
+    X_standard = X_standard.transpose()
+    X_standard = np.divide(X_standard,var)
+    X_standard = np.concatenate((X_standard,np.ones((X_standard.shape[0],1))), axis=1)
+    return X_standard
+    
+    
     
 def block_patch(image,psize,stride):
     """
