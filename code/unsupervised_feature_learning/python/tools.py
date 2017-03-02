@@ -132,7 +132,7 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
     nb_samples = X.shape[0]
     Features = np.zeros((nb_samples, 4*nb_centroids))
     for i in range(nb_samples):
-        if(i % 10 == 0):
+        if(i % 100 == 0):
             print("Feature extraction: {} / {}".format(i,nb_samples))
         ## Extract patches
         Xi = X[i,:]
@@ -231,7 +231,6 @@ def standard(X):
     var = np.var(X,axis=0)+0.01
     var = np.sqrt(var)
     X_standard = X - mean
-    X_standard = X_standard.transpose()
     X_standard = np.divide(X_standard,var)
     X_standard = np.concatenate((X_standard,np.ones((X_standard.shape[0],1))), axis=1)
     return X_standard

@@ -58,7 +58,7 @@ X_feat = tools.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)
 X_feat = tools.standard(X_feat)
 
 #%% Export features
-np.savetxt('X_unsupervised_features.csv',X_feat,delimiter=',')
+#np.savetxt('X_unsupervised_features.csv',X_feat,delimiter=',')
 
 
 
