@@ -7,6 +7,11 @@ Created on Fri Feb 17 10:29:39 2017
 """
 from .im2col import im2col_indices, col2im_indices
 import numpy as np
+import pyximport; pyximport.install(setup_args={'include_dirs': np.get_include()})
+try:
+    from .im2col_cyt import col2im_cython, im2col_cython
+except ImportError:
+    pass
 
 class Module(object):
     """ Base class for neural network's layers
@@ -95,11 +100,19 @@ class MaxPool2d(Module):
          res = X_col[max_idx, range(max_idx.size)]
          res = res.reshape(h_out, w_out, N, d)
          res = res.transpose(2, 3, 0, 1)
-#         res = np.empty((N, d, h_out, w_out))
-#         for i, x in enumerate(X):
-#             res[i,:] = np.max([x[:,(i>>1)&1::2,i&1::2] for i in range(4)],axis=0) #fastest
-#             #res[i,:] = x.reshape(d, int(h/2), 2, int(w/2), 2).max(axis=(2, 4)) #2sd fastest
          return res
+
+#         N, C, H, W = X.shape
+#         pool_height, pool_width = self._kernel_size, self._kernel_size
+#         stride = self._stride
+#         assert pool_height == pool_width == stride, 'Invalid pool params'
+#         assert H % pool_height == 0
+#         assert W % pool_height == 0
+#         x_reshaped = X.reshape(N, C, int(H / pool_height), pool_height,
+#                                 int(W / pool_width), pool_width)
+#         out = x_reshaped.max(axis=3).max(axis=4)
+#         self.cache = (X, x_reshaped, out)
+#         return out
 
     def backward(self, output_grad):
         N,d,h,w = self._X_shape
@@ -109,6 +122,16 @@ class MaxPool2d(Module):
         dX_col[self._max_idx, range(self._max_idx.size)] = dout_flat
         dX = col2im_indices(dX_col, (N * d, 1, h, w), self._kernel_size, self._kernel_size, padding=0, stride=self._stride)
         return dX.reshape(self._X_shape)
+#         dout = output_grad
+#         x, x_reshaped, out = self.cache
+#         dx_reshaped = np.zeros_like(x_reshaped)
+#         out_newaxis = out[:, :, :, np.newaxis, :, np.newaxis]
+#         mask = (x_reshaped == out_newaxis)
+#         dout_newaxis = dout[:, :, :, np.newaxis, :, np.newaxis]
+#         dout_broadcast, _ = np.broadcast_arrays(dout_newaxis, dx_reshaped)
+#         dx_reshaped[mask] = dout_broadcast[mask]
+#         dx_reshaped /= np.sum(mask, axis=(3, 5), keepdims=True)
+#         return dx_reshaped.reshape(x.shape)
 
 class Conv2d(Module):
     """ Applies a 2D convolution over an input signal composed of several input planes.
@@ -150,18 +173,14 @@ class Conv2d(Module):
 
         # Im2Col approach: http://wiseodd.github.io/techblog/2016/07/16/convnet-conv-layer/
         # (https://leonardoaraujosantos.gitbooks.io/artificial-inteligence/content/making_faster.html)
-        X_col = im2col_indices(X, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
+        ###X_col = im2col_indices(X, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
+        X_col = im2col_cython(X, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
         self._X_col = X_col
         W_col = self._weight.reshape(n_filters, -1)
         res = W_col @ X_col
         res = res + np.tile(self._bias, (res.shape[1],1)).T
         res = res.reshape(n_filters, h_out, w_out, N)
         res = res.transpose(3, 0, 1, 2)
-
-#        res = np.empty((N, self._out_channels, h_out, w_out))
-#        #for n, x in enumerate(X):
-#            for f,bias in enumerate(self._bias):
-#                res[n, f, :] = bias + np.sum([scipy.ndimage.filters.correlate(x[i], self._weight[f][i], mode='constant')[2:-2,2:-2] for i in range(d)], axis=0)
         return res
 
     def backward(self, output_grad):
@@ -175,8 +194,9 @@ class Conv2d(Module):
 
         W_reshape = self._weight.reshape(n_filters, -1)
         dX_col = W_reshape.T @ output_grad_reshaped
-        return col2im_indices(dX_col, self._X_shape, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
-
+        ###dX = col2im_indices(dX_col, self._X_shape, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
+        dX = col2im_cython(dX_col, self._X_shape[0], self._X_shape[1], self._X_shape[2], self._X_shape[3], self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
+        return dX
 class Linear(Module):
     """ Applies a linear transformation to the incoming data: y=Ax+b
     Parameters
@@ -231,8 +251,8 @@ class BatchNorm2d(Module):
     """
     def __init__(self, in_features, eps=0.04, momentum=0.1):
         self.in_features = in_features
-        self._weight = np.random.uniform(size=in_features)
-        self._bias = np.zeros(in_features)
+        self._weight = np.random.uniform(size=in_features).astype(np.float32)
+        self._bias = np.zeros(in_features).astype(np.float32)
         self.eps = eps #10/255
         self.momentum = momentum
         self._mu = None
@@ -308,6 +328,11 @@ class Sequential(Module):
         for module in self._modules:
             if self.has_parameters(module):
                 module.zero_grad()
+                
+    def zero_momentum(self):
+        for module in self._modules:
+            if isinstance(module, BatchNorm2d):
+                module.zero_momentum()
 
     def parameters(self):
         parameters = []
