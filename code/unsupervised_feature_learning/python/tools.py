@@ -132,58 +132,90 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
     nb_samples = X.shape[0]
     Features = np.zeros((nb_samples, 4*nb_centroids))
     for i in range(nb_samples):
-        if(i % 1000 == 0):
+        if(i % 10 == 0):
             print("Feature extraction: {} / {}".format(i,nb_samples))
         ## Extract patches
         Xi = X[i,:]
+#        print("Xi {}".format(Xi.shape))
         Xi = Xi.reshape(tuple(dim))
+#        print("block patch")
+#        print("Xi {}".format(Xi.shape))
         patches = block_patch(Xi,rfSize,stride)
+#        input("Keep going...")
         ## Pre-process patches
-        pre_process(patches,eps)
+#        print("Preprocessing")
+        patches = pre_process(patches,eps)
+#        input("Keep going...")
         ## Whitening (optional)
+#        print("Whitening")
         if(args):
             M = args[0]
             P = args[1]
             patches = patches.transpose() - M
             patches = patches.transpose()
             patches = np.dot(patches,P)
+#        print("patches {}".format(patches.shape))
+#        input("Keep going...")
         ## Activation function (soft Kmeans assignement)
+#        print("Activation function")
         n_patches = np.sum(patches**2,axis=1)
+        n_patches = n_patches.reshape((len(n_patches),1))
         n_centroids = np.sum(centroids**2,axis=1)
+        n_centroids = n_centroids.reshape((1,len(n_centroids)))
         CvsP = np.dot(patches,centroids.transpose())
-        distance = n_patches - 2*CvsP
+#        print("npatches {} (should be 729)".format(n_patches.shape))
+#        print("ncentroids {} (should be 1500)".format(n_centroids.shape))
+#        print("CvsP {} (should be 729*1500)".format(CvsP.shape))
+        distance = 2*CvsP+n_patches
         distance = n_centroids + distance
         distance = np.sqrt(distance)## z in the article
+#        print("Distance {} (should be 729 * 1500)".format(distance.shape))
 #        min_dist = np.min(distance,axis=0)
 #        labels = np.argmin(distance,axis=0)
         mu = np.mean(distance,axis=1)## average distance to centroids for each patch
-        activation = mu - distance
+#        print("mu {} (should be 729)".format(mu.shape))
+        mu = mu.reshape((len(mu),1))
+        activation = distance - mu
         activation[activation <= 0] = 0
-        ## Reshape patches
-        rows = dim[0] - rfSize
-        cols = dim[1] - rfSize
-        patches = patches.reshape((rows,cols,nb_centroids))
+#        print("Activation {} (should be 729*1600)".format(activation.shape))
+#        print("Activation {}".format(activation))
+#        input("Keep going...")
+        
+        
+        ## Reshape activation
+#        print("Reshape activation")
+        rows = dim[0] - rfSize + 1
+        cols = dim[1] - rfSize + 1
+#        print("rows {}".format(rows))
+#        print("cols {}".format(cols))
+#        print("activation {}".format(activation.shape))
+        activation = activation.reshape((rows,cols,nb_centroids))
+#        input("Keep going...")
         ## Pooling over 4 quadrants of the image to reduce number of features
+#        print("Max pooling")
         quad_x = round(rows / 2)
         quad_y = round(cols / 2)
         # up left quadrant
-        q1 = np.sum(patches[0:quad_x,0:quad_y,:],axis=0)
-        q1 = np.sum(q1)
+#        print("quadrant {}".format(activation[0:quad_x,0:quad_y,:].shape))
+        q1 = np.sum(activation[0:quad_x,0:quad_y,:],axis=0)
+        q1 = np.sum(q1,axis=0)
+#        print("q1 {} (should be 1500)".format(q1.shape))
         q1 = q1.reshape((1,nb_centroids))
         # up right quadrant
-        q2 = np.sum(patches[quad_x:,0:quad_y,:],axis=0)
-        q2 = np.sum(q2)
+        q2 = np.sum(activation[quad_x:,0:quad_y,:],axis=0)
+        q2 = np.sum(q2,axis=0)
         q2 = q2.reshape((1,nb_centroids))
         # bottom left quadrant
-        q3 = np.sum(patches[0:quad_x,quad_y:,:],axis=0)
-        q3 = np.sum(q3)
+        q3 = np.sum(activation[0:quad_x,quad_y:,:],axis=0)
+        q3 = np.sum(q3,axis=0)
         q3 = q3.reshape((1,nb_centroids))
         # bottom right quadrant
-        q4 = np.sum(patches[quad_x:,quad_y:,:],axis=0)
-        q4 = np.sum(q4)
+        q4 = np.sum(activation[quad_x:,quad_y:,:],axis=0)
+        q4 = np.sum(q4,axis=0)
         q4 = q4.reshape((1,nb_centroids))
         ## Get feature vector from max pooling
         Q = np.concatenate((q1,q2,q3,q4),axis=1)
+#        input("Keep going...")
         Features[i,:] = Q
     return Features
         
@@ -198,7 +230,7 @@ def standard(X):
     mean = np.mean(X,axis=0)
     var = np.var(X,axis=0)+0.01
     var = np.sqrt(var)
-    X_standard = X.transpose() - mean
+    X_standard = X - mean
     X_standard = X_standard.transpose()
     X_standard = np.divide(X_standard,var)
     X_standard = np.concatenate((X_standard,np.ones((X_standard.shape[0],1))), axis=1)
@@ -218,12 +250,12 @@ def block_patch(image,psize,stride):
     patches = np.zeros((1,psize*psize*3))
     width = image.shape[0]
     height = image.shape[1]
-    channels = image.shape[3]
-    for i in range(0,stride,width-psize):
-        for j in range(0,stride,height-psize):
+    channels = image.shape[2]
+    for i in range(0,width-psize+1,stride):
+        for j in range(0,height-psize+1,stride):
             patch = np.zeros((1,psize*psize*3))
             for c in range(channels):
-                patch_c = image[i:i+psize,j:j+psize]
+                patch_c = image[i:i+psize,j:j+psize,c]
                 patch_c = patch_c.reshape((1,psize*psize))
                 patch[:,c*psize*psize:(c+1)*psize*psize] = patch_c
             patches = np.concatenate((patches,patch),axis=0)

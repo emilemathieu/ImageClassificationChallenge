@@ -53,6 +53,7 @@ if(whitening):
 centroids = tools.Kmeans(patches,nb_centroids,nb_iter=50)
 #%%
 X_feat = tools.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)
+
 #%%
 X_feat = tools.standard(X_feat)
 
