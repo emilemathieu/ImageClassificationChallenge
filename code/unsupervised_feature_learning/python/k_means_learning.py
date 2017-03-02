@@ -16,6 +16,8 @@ nb_patches = 100000
 nb_centroids = 1500
 whitening = True
 dim = [32,32,3]
+stride = 1
+eps = 10
 
 #%% Load data
 ####### Load labeled set
@@ -43,14 +45,14 @@ Y = Y[:,1]
 ############ Extract random patches from unlabeled images
 patches = tools.extract_random_patches(X_test,nb_patches,rfSize,dim)
 
-patches = tools.pre_process(patches,eps=10)
+patches = tools.pre_process(patches,eps)
 
 if(whitening):
     patches,M,P = tools.whiten(patches,eps_zca=0.1)
 #%%    
 centroids = tools.Kmeans(patches,nb_centroids,nb_iter=50)
 #%%
-X_feat = tools.extract_features(X_train,centroids,rfSize,dim,M,P)
+X_feat = tools.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)
 #%%
 X_feat = tools.standard(X_feat)
 

@@ -52,7 +52,7 @@ for i=1:numPatches
   
   r = random('unid', CIFAR_DIM(1) - rfSize + 1);
   c = random('unid', CIFAR_DIM(2) - rfSize + 1);
-  patch = reshape(testX(mod(i-1,size(testX,1))+1, :), CIFAR_DIM);
+  patch = reshape(trainX(mod(i-1,size(trainX,1))+1, :), CIFAR_DIM);
   patch = patch(r:r+rfSize-1,c:c+rfSize-1,:);
   patches(i,:) = patch(:)';
 end
