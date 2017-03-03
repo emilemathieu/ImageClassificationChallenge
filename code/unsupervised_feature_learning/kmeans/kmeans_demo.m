@@ -9,11 +9,11 @@ clear;clc;
 %% Configuration
 addpath minFunc;
 rfSize = 6;
-numCentroids=1600; % ORIGINAL PAPER VALUE
-%numCentroids=1600/5/10*3; % TO BE TUNED
+%numCentroids=1600; % ORIGINAL PAPER VALUE
+numCentroids=1600/5/10*3; % TO BE TUNED
 whitening=true;
-numPatches = 10000; % ORIGINAL PAPER VALUE
-%numPatches = 400000/5/10*3; % TO BE TUNED
+%numPatches = 10000; % ORIGINAL PAPER VALUE
+numPatches = 400000/5/10*3; % TO BE TUNED
 CIFAR_DIM=[32 32 3];
 
 %%
@@ -29,10 +29,10 @@ Y = double(Y(:,2) + 1); %% LABELS TO BE IN (1,10); NO IDEA WHY
 
 %% Load CIFAR training data
 fprintf('Loading training data...\n');
-trainX = X(1:3000,:);
-trainY = Y(1:3000);
-testY = Y(3001:end);
-testX = X(3001:end,:);
+trainX = X;%(1:3000,:);
+trainY = Y;%(1:3000);
+% testY = Y(3001:end);
+% testX = X(3001:end,:);
 %f1=load([CIFAR_DIR '/data_batch_1.mat']);
 %f2=load([CIFAR_DIR '/data_batch_2.mat']);
 %f3=load([CIFAR_DIR '/data_batch_3.mat']);
@@ -57,6 +57,7 @@ for i=1:numPatches
   patches(i,:) = patch(:)';
 end
 % normalize for contrast
+csvwrite('../python/extractpatches.csv',patches);
 patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
 
 % whiten
@@ -72,6 +73,9 @@ end
 centroids = run_kmeans(patches, numCentroids, 50);
 show_centroids(centroids, rfSize); drawnow;
 
+csvwrite('../python/centroids_learn.csv',centroids);
+csvwrite('../python/M.csv',M);
+csvwrite('../python/P.csv',P);
 % extract training features
 if (whitening)
   trainXC = extract_features(trainX, centroids, rfSize, CIFAR_DIM, M,P);

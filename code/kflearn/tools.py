@@ -7,7 +7,6 @@ TOOL FUNCTIONS FOR FEATURE EXTRACTION
 """
 import numpy as np
 import random
-import time
 
 def extract_random_patches(X,nb_patches,rfSize,dim):
     """
@@ -74,11 +73,11 @@ def whiten(patches,eps_zca):
     patches = np.dot((patches.transpose() - M).transpose(),P)
     return patches,M,P
     
-def Kmeans(patches,nb_centroids,nb_iter,centroids):
+def Kmeans(patches,nb_centroids,nb_iter):
     x2 = patches**2
     x2 = np.sum(x2,axis=1)
     x2 = x2.reshape((len(x2),1))
-    #centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
+    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
     sbatch = 1000
     
     for i in range(nb_iter):
@@ -90,13 +89,12 @@ def Kmeans(patches,nb_centroids,nb_iter,centroids):
         compt = compt.reshape((len(compt),1))
         loss = 0
         ## Batch update
-        for j in range(0,patches.shape[0],sbatch):
+        for j in range(0,sbatch,patches.shape[0]):
             last = min(j+sbatch,patches.shape[0])
             m = last - j
             diff = np.dot(centroids,patches[j:last,:].transpose()) - c2## difference of distances
             labels = np.argmax(diff,axis=0)## index of the centroid for each sample
             max_value = np.max(diff,axis=0)## maximum value for each sample
-            max_value = max_value.reshape((len(max_value),1))
             loss += np.sum(0.5*x2[j:last,:] - max_value)
             S = np.zeros((m,nb_centroids))
             ## Put the label of each sample in a sparse indicator matrix
@@ -107,9 +105,7 @@ def Kmeans(patches,nb_centroids,nb_iter,centroids):
             sumS = np.sum(S,axis=0)
             sumS = sumS.reshape((len(sumS),1))
             compt += sumS## update the number of samples per centroid in the batch
-        
-        #!!!!! Issue in divide
-        print("end batch")
+            
         centroids = np.divide(sum_k,compt)## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
                                           ## this situation is dealt with in the two following lines  
         badCentroids = np.where(compt == 0)## Find the indices of empty clusters
@@ -138,16 +134,12 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
         if(i % 100 == 0):
             print("Feature extraction: {} / {}".format(i,nb_samples))
         ## Extract patches
-        #Xi = X[i,:]
+        Xi = X[i,:]
 #        print("Xi {}".format(Xi.shape))
-        #Xi = Xi.reshape(tuple(dim))
+        Xi = Xi.reshape(tuple(dim))
 #        print("block patch")
 #        print("Xi {}".format(Xi.shape))
-        patches1 = block_patch(X[i,0:1024],rfSize,stride)
-        patches2 = block_patch(X[i,1024:2048],rfSize,stride)
-        patches3 = block_patch(X[i,2048:],rfSize,stride)
-        patches = np.concatenate((patches1,patches2,patches3),axis=0)
-        patches = patches.transpose()
+        patches = block_patch(Xi,rfSize,stride)
 #        input("Keep going...")
         ## Pre-process patches
 #        print("Preprocessing")
@@ -173,7 +165,7 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
 #        print("npatches {} (should be 729)".format(n_patches.shape))
 #        print("ncentroids {} (should be 1500)".format(n_centroids.shape))
 #        print("CvsP {} (should be 729*1500)".format(CvsP.shape))
-        distance = -2*CvsP+n_patches
+        distance = 2*CvsP+n_patches
         distance = n_centroids + distance
         distance = np.sqrt(distance)## z in the article
 #        print("Distance {} (should be 729 * 1500)".format(distance.shape))
@@ -182,7 +174,7 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
         mu = np.mean(distance,axis=1)## average distance to centroids for each patch
 #        print("mu {} (should be 729)".format(mu.shape))
         mu = mu.reshape((len(mu),1))
-        activation = -(distance - mu)
+        activation = distance - mu
         activation[activation <= 0] = 0
 #        print("Activation {} (should be 729*1600)".format(activation.shape))
 #        print("Activation {}".format(activation))
@@ -244,45 +236,29 @@ def standard(X):
     
     
     
-#def block_patch(image,psize,stride):
-#    """
-#    Extract patches of size psize x psize in an image
-#    ---------------
-#    Parameters:
-#        image: multidimensional numpy array
-#        psize: size of the square patches
-#        stride: space between each patch
-#    """
-#    patches = np.zeros((1,psize*psize*3))
-#    width = image.shape[0]
-#    height = image.shape[1]
-#    channels = image.shape[2]
-#    for i in range(0,width-psize+1,stride):
-#        for j in range(0,height-psize+1,stride):
-#            patch = np.zeros((1,psize*psize*3))
-#            for c in range(channels):
-#                patch_c = image[i:i+psize,j:j+psize,c]
-#                patch_c = patch_c.reshape((1,psize*psize))
-#                patch[:,c*psize*psize:(c+1)*psize*psize] = patch_c
-#            patches = np.concatenate((patches,patch),axis=0)
-#    patches = patches[1:,:]
-#    return patches
-
-def block_patch(x,psize,stride):
+def block_patch(image,psize,stride):
     """
-    x vector of size 1024 to reshape into 32x32
+    Extract patches of size psize x psize in an image
+    ---------------
+    Parameters:
+        image: multidimensional numpy array
+        psize: size of the square patches
+        stride: space between each patch
     """
-    patches = np.zeros((psize*psize,1))
-    image = x.reshape((32,32))
-    for i in range(0,image.shape[0]-psize+1,stride):
-        for j in range(0,image.shape[1]-psize+1,stride):
-            patch = image[i:i+psize,j:j+psize]
-            #print("patch {}".format(patch.shape))
-            patch = patch.reshape((psize*psize,1))
-            patches = np.concatenate((patches,patch),axis=1)
-    return patches[:,1:]
-            
-            
+    patches = np.zeros((1,psize*psize*3))
+    width = image.shape[0]
+    height = image.shape[1]
+    channels = image.shape[2]
+    for i in range(0,width-psize+1,stride):
+        for j in range(0,height-psize+1,stride):
+            patch = np.zeros((1,psize*psize*3))
+            for c in range(channels):
+                patch_c = image[i:i+psize,j:j+psize,c]
+                patch_c = patch_c.reshape((1,psize*psize))
+                patch[:,c*psize*psize:(c+1)*psize*psize] = patch_c
+            patches = np.concatenate((patches,patch),axis=0)
+    patches = patches[1:,:]
+    return patches
             
             
     
