@@ -38,7 +38,7 @@ Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 #Y_augmented = pd.read_csv('../data/augmented_Y.csv').as_matrix()[:,1]
 #Y_final = np.concatenate((Y_full, Y_augmented),axis=0)
 #%% K-means feature learning
-rfSize = 6
+rfSize = 16
 nb_patches = 100000
 nb_centroids = 100
 nb_iter = 50
@@ -46,7 +46,7 @@ whitening = True
 dim = [32,32,3]
 stride = 1
 eps = 10
-eps_zca = 0.1
+eps_zca = 0.01
 X_features = feature_extract.FeatureLearning(X_train,X_test,rfSize,nb_patches,nb_centroids,nb_iter,whitening,dim,stride,eps,eps_zca)
 
 #%%

@@ -82,7 +82,7 @@ def Kmeans(patches,nb_centroids,nb_iter,centroids):
     sbatch = 1000
     
     for i in range(nb_iter):
-        print("K-means: {} / {} iterations".format(i,nb_iter))
+        print("K-means: {} / {} iterations".format(i+1,nb_iter))
         c2 = 0.5 * np.sum(centroids**2,axis=1)
         c2 = c2.reshape((len(c2),1))
         sum_k = np.zeros((nb_centroids,patches.shape[1]))## dictionnary of patches
@@ -112,8 +112,14 @@ def Kmeans(patches,nb_centroids,nb_iter,centroids):
         print("end batch")
         centroids = np.divide(sum_k,compt)## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
                                           ## this situation is dealt with in the two following lines  
-        badCentroids = np.where(compt == 0)## Find the indices of empty clusters
-        centroids[tuple(badCentroids),:] = 0## in the case where a cluster is empty, set the centroid to 0 to avoid NaNs
+        ## Find indices for which compt[i] == 0
+        indices = []
+        for index in range(len(compt)):
+            if(compt[index]==0):
+                indices.append(index)
+        if(len(indices) != 0):
+            for index in indices:
+                centroids[index,:] = 0## in the case where a cluster is empty, set the centroid to 0 to avoid NaNs
     return centroids
                 
 

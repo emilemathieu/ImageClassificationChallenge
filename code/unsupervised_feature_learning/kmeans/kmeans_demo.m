@@ -70,6 +70,7 @@ if (whitening)
 end
 
 % run K-means
+csvwrite('../python/MBpatches.csv',patches);
 centroids = run_kmeans(patches, numCentroids, 50);
 show_centroids(centroids, rfSize); drawnow;
 
@@ -84,11 +85,12 @@ else
 end
 
 % standardize data
+csvwrite('../python/trainXC.csv',trainXC);
 trainXC_mean = mean(trainXC);
 trainXC_sd = sqrt(var(trainXC)+0.01);
 trainXCs = bsxfun(@rdivide, bsxfun(@minus, trainXC, trainXC_mean), trainXC_sd);
 trainXCs = [trainXCs, ones(size(trainXCs,1),1)];
-
+csvwrite('../../../data/X_features_kmeans.csv',trainXCs);
 % train classifier using SVM
 C = 100;
 theta = train_svm(trainXCs, trainY, C, 100);

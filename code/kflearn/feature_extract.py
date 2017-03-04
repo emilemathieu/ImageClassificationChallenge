@@ -79,7 +79,7 @@ def FeatureLearning(X_train,X_test,rfSize,nb_patches,nb_centroids,nb_iter,whiten
     Output:
         X_feature: numpy array nb_samples x nb_features
     """
-    patches = tools.extract_random_patches(X_train,nb_patches,rfSize,dim)
+    patches = tools.extract_random_patches(X_test,nb_patches,rfSize,dim)
     patches = tools.pre_process(patches,eps)
     if(whitening):
         patches,M,P = tools.whiten(patches,eps_zca)
