@@ -50,7 +50,7 @@ eps_zca = 0.1
 X_features = feature_extract.FeatureLearning(X_train,X_test,rfSize,nb_patches,nb_centroids,nb_iter,whitening,dim,stride,eps,eps_zca)
 
 #%%
-X_multi = X_matlab_features
+X_multi = X_features
 # X_multi = X_cnn_features
 #X_multi = rgb_to_greyscale(X_full)
 Y_multi = Y_full
@@ -60,13 +60,14 @@ N = len(Y_multi)
 
 #%% Select classifiers
 
-from sklearn.svm import SVC
+from sklearn.svm import SVC,LinearSVC
 from mllib import svm
 from importlib import reload
 
 classifiers = {
-        'sklearn': SVC(kernel='poly', degree=2, C=1.0),
-        'SMO OVO': svm.multiclass_ovo(C=1.0, kernel=svm.Kernel.rbf(1), tol=1.0, max_iter=5000),
+        'sklearn': SVC(kernel='linear', degree=2, C=1.0),
+#        'sklearn': LinearSVC(),
+        'SMO OVO': svm.multiclass_ovo(C=1.0, kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000),
                }
 
 #%% Assess classifiers
