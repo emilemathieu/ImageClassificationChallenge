@@ -7,7 +7,6 @@ TOOL FUNCTIONS FOR FEATURE EXTRACTION
 """
 import numpy as np
 import random
-import time
 
 def extract_random_patches(X,nb_patches,rfSize,dim):
     """
