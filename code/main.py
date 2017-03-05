@@ -32,7 +32,7 @@ CHANEL_SIZE = IMAGE_SIZE * IMAGE_SIZE
 #X_final = np.concatenate((X_full,X_augmented),axis=0)
 X_train = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
 X_test = pd.read_csv('../data/Xte.csv', header=None).as_matrix()[:, 0:-1]
-X_matlab_features = pd.read_csv('../data/X_features_kmeans.csv', header=None).as_matrix()
+#X_matlab_features = pd.read_csv('../data/X_features_kmeans.csv', header=None).as_matrix()
 
 Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 #Y_augmented = pd.read_csv('../data/augmented_Y.csv').as_matrix()[:,1]
@@ -55,28 +55,35 @@ X_k = np.round(X_k)
 #%%
 patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
 #%%
-patches =  pd.read_csv('../data/patches.csv', header=None).as_matrix()
+#patches =  pd.read_csv('../data/patches.csv', header=None).as_matrix()
 #%% Patches pre processing
 patches = tools.pre_process(patches,eps)
 #%% Patches whitening
 patches,M,P = tools.whiten(patches,eps_zca)
 #%% run k means
-patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
-centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
-centroids = tools.Kmeans(patches,nb_centroids,nb_iter,centroids)
+#patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
+#centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
+centroids = tools.Kmeans(patches,nb_centroids,8)
+np.savetxt('../data/centroids_python.csv',centroids)
 #%%
-centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()
+#centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()
 #%% Feature extraction
-M = pd.read_csv('../data/M.csv',header=None).as_matrix()
-M = M.transpose()
-P = pd.read_csv('../data/P.csv',header=None).as_matrix()
+#M = pd.read_csv('../data/M.csv',header=None).as_matrix()
+#M = M.transpose()
+#P = pd.read_csv('../data/P.csv',header=None).as_matrix()
 #%%
 X_feat = tools.extract_features(X_k,centroids,rfSize,dim,stride,eps,M,P)
 #%% Standardize data
-X_feat_matlab = pd.read_csv('../data/trainXC.csv',header=None).as_matrix()
+#X_feat_matlab = pd.read_csv('../data/trainXC.csv',header=None).as_matrix()
 #%%
+XCmean = np.mean(X_feat,axis=0)
+XCvar = np.var(X_feat,axis=0)+0.01
+XCvar = np.sqrt(XCvar)
 X_feat_s = tools.standard(X_feat)
-X_feat_matlab_s = tools.standard(X_feat_matlab)
+np.savetxt('../data/features_python.csv',X_feat_s,delimiter=',')
+np.savetxt('../data/XCmean.csv',XCmean,delimiter=',')
+np.savetxt('../data/XCvar.csv',XCvar,delimiter=',')
+#X_feat_matlab_s = tools.standard(X_feat_matlab)
 
 #%%
 X_multi = X_feat_s

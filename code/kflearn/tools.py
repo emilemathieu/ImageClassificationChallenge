@@ -73,11 +73,14 @@ def whiten(patches,eps_zca):
     patches = np.dot((patches.transpose() - M).transpose(),P)
     return patches,M,P
     
-def Kmeans(patches,nb_centroids,nb_iter,centroids):
+def Kmeans(patches,nb_centroids,nb_iter,*args):
     x2 = patches**2
     x2 = np.sum(x2,axis=1)
     x2 = x2.reshape((len(x2),1))
-#    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
+    if(args):
+        centroids = args[0]
+    else:
+        centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
     sbatch = 1000
     
     for i in range(nb_iter):
