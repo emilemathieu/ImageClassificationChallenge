@@ -38,19 +38,48 @@ Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 #Y_augmented = pd.read_csv('../data/augmented_Y.csv').as_matrix()[:,1]
 #Y_final = np.concatenate((Y_full, Y_augmented),axis=0)
 #%% K-means feature learning
-rfSize = 16
-nb_patches = 100000
-nb_centroids = 100
+rfSize = 6
+nb_patches = 24000
+nb_centroids = 96
 nb_iter = 50
 whitening = True
 dim = [32,32,3]
 stride = 1
 eps = 10
-eps_zca = 0.01
-X_features = feature_extract.FeatureLearning(X_train,X_test,rfSize,nb_patches,nb_centroids,nb_iter,whitening,dim,stride,eps,eps_zca)
+eps_zca = 0.1
+#%%
+from kflearn import tools
+X_k = X_train + abs(np.min(X_train))
+X_k = X_k * (255 / np.max(X_k))
+X_k = np.round(X_k)
+#%%
+patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
+#%%
+patches =  pd.read_csv('../data/patches.csv', header=None).as_matrix()
+#%% Patches pre processing
+patches = tools.pre_process(patches,eps)
+#%% Patches whitening
+patches,M,P = tools.whiten(patches,eps_zca)
+#%% run k means
+patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
+centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
+centroids = tools.Kmeans(patches,nb_centroids,nb_iter,centroids)
+#%%
+centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()
+#%% Feature extraction
+M = pd.read_csv('../data/M.csv',header=None).as_matrix()
+M = M.transpose()
+P = pd.read_csv('../data/P.csv',header=None).as_matrix()
+#%%
+X_feat = tools.extract_features(X_k,centroids,rfSize,dim,stride,eps,M,P)
+#%% Standardize data
+X_feat_matlab = pd.read_csv('../data/trainXC.csv',header=None).as_matrix()
+#%%
+X_feat_s = tools.standard(X_feat)
+X_feat_matlab_s = tools.standard(X_feat_matlab)
 
 #%%
-X_multi = X_features
+X_multi = X_feat_s
 # X_multi = X_cnn_features
 #X_multi = rgb_to_greyscale(X_full)
 Y_multi = Y_full

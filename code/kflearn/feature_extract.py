@@ -10,6 +10,7 @@ Created on Wed Mar  1 16:16:54 2017
 import pandas as pd
 import numpy as np
 import kflearn.tools as tools
+from sklearn.cluster import KMeans
 #%% Define the parameters
 #rfSize = 6
 #nb_patches = 100000
@@ -79,10 +80,16 @@ def FeatureLearning(X_train,X_test,rfSize,nb_patches,nb_centroids,nb_iter,whiten
     Output:
         X_feature: numpy array nb_samples x nb_features
     """
-    patches = tools.extract_random_patches(X_test,nb_patches,rfSize,dim)
+    ## Rescale the data
+    X_train = X_train + abs(np.min(X_train))
+    X_train = X_train * (255 / np.max(X_train))
+    X_train = np.round(X_train)
+    patches = tools.extract_random_patches(X_train,nb_patches,rfSize,dim)
     patches = tools.pre_process(patches,eps)
     if(whitening):
         patches,M,P = tools.whiten(patches,eps_zca)
+    #km = KMeans(n_clusters=nb_centroids).fit(patches)
+    #centroids = km.cluster_centers_
     centroids = tools.Kmeans(patches,nb_centroids,nb_iter)
     if(whitening):
         X_feature = tools.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)

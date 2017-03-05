@@ -73,11 +73,11 @@ def whiten(patches,eps_zca):
     patches = np.dot((patches.transpose() - M).transpose(),P)
     return patches,M,P
     
-def Kmeans(patches,nb_centroids,nb_iter):
+def Kmeans(patches,nb_centroids,nb_iter,centroids):
     x2 = patches**2
     x2 = np.sum(x2,axis=1)
     x2 = x2.reshape((len(x2),1))
-    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
+#    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
     sbatch = 1000
     
     for i in range(nb_iter):
@@ -215,13 +215,13 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
 #        print("q1 {} (should be 1500)".format(q1.shape))
         q1 = q1.reshape((1,nb_centroids))
         # up right quadrant
-        q2 = np.sum(activation[quad_x:,0:quad_y,:],axis=0)
-        q2 = np.sum(q2,axis=0)
-        q2 = q2.reshape((1,nb_centroids))
-        # bottom left quadrant
-        q3 = np.sum(activation[0:quad_x,quad_y:,:],axis=0)
+        q3 = np.sum(activation[quad_x:,0:quad_y,:],axis=0)
         q3 = np.sum(q3,axis=0)
         q3 = q3.reshape((1,nb_centroids))
+        # bottom left quadrant
+        q2 = np.sum(activation[0:quad_x,quad_y:,:],axis=0)
+        q2 = np.sum(q2,axis=0)
+        q2 = q2.reshape((1,nb_centroids))
         # bottom right quadrant
         q4 = np.sum(activation[quad_x:,quad_y:,:],axis=0)
         q4 = np.sum(q4,axis=0)
