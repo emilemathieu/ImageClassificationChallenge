@@ -2,6 +2,7 @@ function centroids = run_kmeans(X, k, iterations)
 
   x2 = sum(X.^2,2);
   centroids = randn(k,size(X,2))*0.1;%X(randsample(size(X,1), k), :);
+  csvwrite('../python/centroids.csv',centroids);
   BATCH_SIZE=1000;
   
   
