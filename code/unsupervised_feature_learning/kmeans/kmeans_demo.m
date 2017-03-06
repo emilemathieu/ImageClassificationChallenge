@@ -13,7 +13,7 @@ rfSize = 6;
 numCentroids=1600/5/10*3; % TO BE TUNED
 whitening=true;
 %numPatches = 10000; % ORIGINAL PAPER VALUE
-numPatches = 400000/5/10*3; % TO BE TUNED
+numPatches = 400000;%/5/10*3; % TO BE TUNED
 CIFAR_DIM=[32 32 3];
 
 %%

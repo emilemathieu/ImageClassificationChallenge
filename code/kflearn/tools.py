@@ -126,9 +126,9 @@ def Kmeans(patches,nb_centroids,nb_iter,*args):
 #            print("compt {} ({})".format(compt[0:10],i))
 #            input("iteration {}, batch {}, keep going...".format(i,j))
             
-        centroids = np.divide(sum_k,compt).copy()## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
-        print(compt.dtype)                       ## this situation is dealt with in the two following lines  
-        print(sum_k.dtype)
+        centroids = np.divide(sum_k,compt)## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
+                                                 ## this situation is dealt with in the two following lines  
+        
 #        print("centroids {} ({})".format(centroids[0:5,0:5],i))
 #        input("#{} iteration end, keep going...".format(i))
         #badCentroids = np.where(compt == 0)## Find the indices of empty clusters
