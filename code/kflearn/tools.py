@@ -7,6 +7,7 @@ TOOL FUNCTIONS FOR FEATURE EXTRACTION
 """
 import numpy as np
 import random
+from scipy.sparse import csc_matrix
 
 def extract_random_patches(X,nb_patches,rfSize,dim):
     """
@@ -74,20 +75,25 @@ def whiten(patches,eps_zca):
     return patches,M,P
     
 def Kmeans(patches,nb_centroids,nb_iter,*args):
-    x2 = patches**2
-    x2 = np.sum(x2,axis=1)
+    patches = patches.copy()
+    x2 = np.sum(patches**2,axis=1)
     x2 = x2.reshape((len(x2),1))
+#    print("x2 {}".format(x2[0:10]))
     if(args):
-        centroids = args[0]
+        centroids = args[0].copy()
     else:
         centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
+#    print("centroids {}".format(centroids[0:5,0:5]))
     sbatch = 1000
-    
+#    input("Enter iterations...")
     for i in range(nb_iter):
+        patches = patches.copy()
         print("K-means: {} / {} iterations".format(i+1,nb_iter))
+        centroids = centroids.copy()
         c2 = 0.5 * np.sum(centroids**2,axis=1)
         c2 = c2.reshape((len(c2),1))
-        sum_k = np.zeros((nb_centroids,patches.shape[1]))## dictionnary of patches
+#        print("c2 {} ({})".format(c2[0:10],i))
+        sum_k = np.zeros((nb_centroids,patches.shape[1])).copy()## dictionnary of patches
         compt = np.zeros(nb_centroids)## number of samples per clusters
         compt = compt.reshape((len(compt),1))
         loss = 0
@@ -95,23 +101,36 @@ def Kmeans(patches,nb_centroids,nb_iter,*args):
         for j in range(0,patches.shape[0],sbatch):
             last = min(j+sbatch,patches.shape[0])
             m = last - j
+#            print("last, m {}, {} ({})".format(last,m,i))
             diff = np.dot(centroids,patches[j:last,:].transpose()) - c2## difference of distances
             labels = np.argmax(diff,axis=0)## index of the centroid for each sample
+#            print("labels {} ({})".format(labels[0:10],i))
             max_value = np.max(diff,axis=0)## maximum value for each sample
             max_value = max_value.reshape((len(max_value),1))
             loss += np.sum(0.5*x2[j:last,:] - max_value)
-            S = np.zeros((m,nb_centroids))
+            ## Use sparse matrix
+            rows = np.arange(m)
+            data = np.ones(m)
+            S= csc_matrix((data,(rows,labels)),shape=(m,nb_centroids))
+            S_ = csc_matrix((data,(labels,rows)),shape=(nb_centroids,m))
+            #S = np.zeros((m,nb_centroids))
             ## Put the label of each sample in a sparse indicator matrix
             ## S(i,labels(i)) = 1, 0 elsewhere
-            for ind in range(m):
-                S[ind,labels[ind]] = 1    
-            sum_k += np.dot(S.transpose(),patches[j:last,:])## update the dictionnary
+#            for ind in range(m):
+#                S[ind,labels[ind]] = 1    
+            sum_k = sum_k + S_.dot(patches[j:last,:])## update the dictionnary
+#            print("sum_k {} ({})".format(sum_k[0:3,0:3],i))
             sumS = np.sum(S,axis=0)
-            sumS = sumS.reshape((len(sumS),1))
+            sumS = sumS.reshape((sumS.size,1))
             compt += sumS## update the number of samples per centroid in the batch
+#            print("compt {} ({})".format(compt[0:10],i))
+#            input("iteration {}, batch {}, keep going...".format(i,j))
             
-        centroids = np.divide(sum_k,compt)## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
-                                          ## this situation is dealt with in the two following lines  
+        centroids = np.divide(sum_k,compt).copy()## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
+        print(compt.dtype)                       ## this situation is dealt with in the two following lines  
+        print(sum_k.dtype)
+#        print("centroids {} ({})".format(centroids[0:5,0:5],i))
+#        input("#{} iteration end, keep going...".format(i))
         #badCentroids = np.where(compt == 0)## Find the indices of empty clusters
         ## Find indices for which compt[i] == 0
         indices = []

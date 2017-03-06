@@ -61,10 +61,11 @@ patches = tools.pre_process(patches,eps)
 #%% Patches whitening
 patches,M,P = tools.whiten(patches,eps_zca)
 #%% run k means
-#patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
-#centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
-centroids = tools.Kmeans(patches,nb_centroids,8)
-np.savetxt('../data/centroids_python.csv',centroids)
+patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
+centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
+#%%
+centroids = tools.Kmeans(patches,nb_centroids,8,centroids)
+#np.savetxt('../data/centroids_python.csv',centroids)
 #%%
 #centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()
 #%% Feature extraction
@@ -80,10 +81,10 @@ XCmean = np.mean(X_feat,axis=0)
 XCvar = np.var(X_feat,axis=0)+0.01
 XCvar = np.sqrt(XCvar)
 X_feat_s = tools.standard(X_feat)
-np.savetxt('../data/features_python.csv',X_feat_s,delimiter=',')
-np.savetxt('../data/XCmean.csv',XCmean,delimiter=',')
-np.savetxt('../data/XCvar.csv',XCvar,delimiter=',')
-#X_feat_matlab_s = tools.standard(X_feat_matlab)
+#np.savetxt('../data/features_python.csv',X_feat_s,delimiter=',')
+#np.savetxt('../data/XCmean.csv',XCmean,delimiter=',')
+#np.savetxt('../data/XCvar.csv',XCvar,delimiter=',')
+X_feat_matlab_s = pd.read_csv('../data/X_features_kmeans.csv',header=None).as_matrix()
 
 #%%
 X_multi = X_feat_s
