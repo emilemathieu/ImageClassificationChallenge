@@ -46,11 +46,12 @@ def pre_process(patches,eps):
     mean_patches = np.mean(patches, axis=1)
     mean_patches = mean_patches.reshape((len(mean_patches),1))
     #print("size mean: {}".format(mean_patches.shape))
-    var_patches = np.var(patches, axis=1)
+    var_patches = np.var(patches, axis=1, ddof=1)
     var_patches = var_patches.reshape((len(var_patches),1))
+    var_patches = np.sqrt(var_patches + eps)
     #print("size var: {}".format(var_patches.shape))
     patches = patches - mean_patches
-    patches = np.divide(patches,np.sqrt(var_patches + eps))
+    patches = np.divide(patches,var_patches)
     return patches
     
 

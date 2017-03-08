@@ -103,9 +103,9 @@ from mllib import svm
 from importlib import reload
 
 classifiers = {
-        'sklearn': SVC(kernel='linear', degree=2, C=1.0),
+        'sklearn': SVC(kernel='linear', degree=2, C=10.),
 #        'sklearn': LinearSVC(),
-        'SMO OVO': svm.multiclass_ovo(C=1.0, kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000),
+        'SMO OVO': svm.multiclass_ovo(C=10., kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000),
                }
 
 #%% Assess classifiers
