@@ -38,9 +38,9 @@ Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 #Y_augmented = pd.read_csv('../data/augmented_Y.csv').as_matrix()[:,1]
 #Y_final = np.concatenate((Y_full, Y_augmented),axis=0)
 #%% K-means feature learning
-rfSize = 6
-nb_patches = 24000
-nb_centroids = 96
+rfSize = 8
+nb_patches = 150000
+nb_centroids = 2500
 nb_iter = 50
 whitening = True
 dim = [32,32,3]
@@ -55,7 +55,7 @@ X_k = np.round(X_k)
 #%%
 #patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
 #%%
-patches =  pd.read_csv('../data/patches1.csv', header=None).as_matrix()
+patches =  pd.read_csv('../data/patches{}_2.csv'.format(rfSize), header=None).as_matrix()
 patches = patches[0:nb_patches,:]
 #%% Patches pre processing
 patches = tools.pre_process(patches,eps)
@@ -119,7 +119,7 @@ times = {classifier_name: [] for classifier_name, classifier in classifiers.item
 
 #X_train, X_test, y_train, y_test = train_test_split(X_histo, Y_histo, test_size=0.33)
 
-for i, (train, test) in enumerate(KFold(n_splits=2, shuffle=True).split(range(len(Y_multi)))):
+for i, (train, test) in enumerate(KFold(n_splits=3, shuffle=True).split(range(len(Y_multi)))):
     X_train, X_test, y_train, y_test = X_multi[train], X_multi[test], Y_multi[train], Y_multi[test]
 
     for classifier_name, classifier in classifiers.items():

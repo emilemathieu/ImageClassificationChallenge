@@ -29,8 +29,8 @@ Y = double(Y(:,2) + 1); %% LABELS TO BE IN (1,10); NO IDEA WHY
 
 %% Load CIFAR training data
 fprintf('Loading training data...\n');
-trainX = X;%(1:3000,:);
-trainY = Y;%(1:3000);
+trainX = X(1:3000,:);
+trainY = Y(1:3000);
 %%
 % testY = Y(3001:end);
 % testX = X(3001:end,:);
@@ -59,7 +59,7 @@ for i=1:numPatches
   patches(i,:) = patch(:)';
 end
 % normalize for contrast
-csvwrite('../../../data/patches6_2.csv',patches);
+csvwrite('../../../data/patches16.csv',patches);
 patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
 
 % whiten
