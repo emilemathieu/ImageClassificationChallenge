@@ -2,7 +2,7 @@ function centroids = run_kmeans(X, k, iterations)
 
   x2 = sum(X.^2,2);
   centroids = randn(k,size(X,2))*0.1;%X(randsample(size(X,1), k), :);
-  csvwrite('../python/centroids.csv',centroids);
+  csvwrite('../../../data/centroids.csv',centroids);
   BATCH_SIZE=1000;
   
   
@@ -33,5 +33,8 @@ function centroids = run_kmeans(X, k, iterations)
     
     % just zap empty centroids so they don't introduce NaNs everywhere.
     badIndex = find(counts == 0);
+    if(~isempty(badIndex))
+        fprintf('zero values in count at iter %d \n',itr);
+    end
     centroids(badIndex, :) = 0;
   end

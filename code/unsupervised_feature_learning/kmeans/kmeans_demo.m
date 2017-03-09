@@ -13,7 +13,7 @@ rfSize = 6;
 numCentroids=1600/5/10*3; % TO BE TUNED
 whitening=true;
 %numPatches = 10000; % ORIGINAL PAPER VALUE
-numPatches = 400000/5/10*3; % TO BE TUNED
+numPatches = 400000;%/5/10*3; % TO BE TUNED
 CIFAR_DIM=[32 32 3];
 
 %%
@@ -29,8 +29,9 @@ Y = double(Y(:,2) + 1); %% LABELS TO BE IN (1,10); NO IDEA WHY
 
 %% Load CIFAR training data
 fprintf('Loading training data...\n');
-trainX = X;%(1:3000,:);
-trainY = Y;%(1:3000);
+trainX = X(1:3000,:);
+trainY = Y(1:3000);
+%%
 % testY = Y(3001:end);
 % testX = X(3001:end,:);
 %f1=load([CIFAR_DIR '/data_batch_1.mat']);
@@ -52,12 +53,13 @@ for i=1:numPatches
   
   r = random('unid', CIFAR_DIM(1) - rfSize + 1);
   c = random('unid', CIFAR_DIM(2) - rfSize + 1);
+  %patch = reshape(trainX(mod(i-1,size(trainX,1))+1, :), CIFAR_DIM);
   patch = reshape(trainX(mod(i-1,size(trainX,1))+1, :), CIFAR_DIM);
   patch = patch(r:r+rfSize-1,c:c+rfSize-1,:);
   patches(i,:) = patch(:)';
 end
 % normalize for contrast
-csvwrite('../python/extractpatches.csv',patches);
+csvwrite('../../../data/patches1.csv',patches);
 patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
 
 % whiten
@@ -70,13 +72,13 @@ if (whitening)
 end
 
 % run K-means
-csvwrite('../python/MBpatches.csv',patches);
-centroids = run_kmeans(patches, numCentroids, 50);
-show_centroids(centroids, rfSize); drawnow;
+csvwrite('../../../data/MBpatches.csv',patches);
+centroids = run_kmeans(patches, numCentroids, 8);
+%show_centroids(centroids, rfSize); drawnow;
 
-csvwrite('../python/centroids_learn.csv',centroids);
-csvwrite('../python/M.csv',M);
-csvwrite('../python/P.csv',P);
+csvwrite('../../../data/centroids_learn.csv',centroids);
+csvwrite('../../../data/M.csv',M);
+csvwrite('../../../data/P.csv',P);
 % extract training features
 if (whitening)
   trainXC = extract_features(trainX, centroids, rfSize, CIFAR_DIM, M,P);
@@ -85,13 +87,17 @@ else
 end
 
 % standardize data
-csvwrite('../python/trainXC.csv',trainXC);
+csvwrite('../../../data/trainXC.csv',trainXC);
 trainXC_mean = mean(trainXC);
 trainXC_sd = sqrt(var(trainXC)+0.01);
 trainXCs = bsxfun(@rdivide, bsxfun(@minus, trainXC, trainXC_mean), trainXC_sd);
 trainXCs = [trainXCs, ones(size(trainXCs,1),1)];
-csvwrite('../../../data/X_features_kmeans.csv',trainXCs);
-% train classifier using SVM
+%csvwrite('../../../data/X_features_kmeans.csv',trainXCs);
+%%
+%train classifier using SVM
+% trainXCsp = csvread('../../../data/features_python.csv');
+% trainXCsp = trainXCsp(1:3000,:);
+%% train
 C = 100;
 theta = train_svm(trainXCs, trainY, C, 100);
 
@@ -104,6 +110,14 @@ fprintf('Train accuracy %f%%\n', 100 * (1 - sum(labels ~= trainY) / length(train
 fprintf('Loading test data...\n');
 testX = X(3001:end,:);
 testY = Y(3001:end);
+% centroids = csvread('../../../data/centroids.csv');
+% M = csvread('../../../data/M.csv');
+% P = csvread('../../../data/P.csv');
+% trainXC_mean = csvread('../../../data/XCmean.csv');
+% trainXC_sd = csvread('../../../data/XCvar.csv');
+% trainXC_mean = trainXC_mean';
+% trainXC_sd = trainXC_sd';
+%%
 %f1=load([CIFAR_DIR '/test_batch.mat']);
 %testX = double(f1.data);
 %testY = double(f1.labels) + 1;

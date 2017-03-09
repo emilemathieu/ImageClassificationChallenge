@@ -7,6 +7,7 @@ TOOL FUNCTIONS FOR FEATURE EXTRACTION
 """
 import numpy as np
 import random
+from scipy.sparse import csc_matrix
 
 def extract_random_patches(X,nb_patches,rfSize,dim):
     """
@@ -45,11 +46,12 @@ def pre_process(patches,eps):
     mean_patches = np.mean(patches, axis=1)
     mean_patches = mean_patches.reshape((len(mean_patches),1))
     #print("size mean: {}".format(mean_patches.shape))
-    var_patches = np.var(patches, axis=1)
+    var_patches = np.var(patches, axis=1, ddof=1)
     var_patches = var_patches.reshape((len(var_patches),1))
+    var_patches = np.sqrt(var_patches + eps)
     #print("size var: {}".format(var_patches.shape))
     patches = patches - mean_patches
-    patches = np.divide(patches,np.sqrt(var_patches + eps))
+    patches = np.divide(patches,var_patches)
     return patches
     
 
@@ -73,18 +75,26 @@ def whiten(patches,eps_zca):
     patches = np.dot((patches.transpose() - M).transpose(),P)
     return patches,M,P
     
-def Kmeans(patches,nb_centroids,nb_iter):
-    x2 = patches**2
-    x2 = np.sum(x2,axis=1)
+def Kmeans(patches,nb_centroids,nb_iter,*args):
+    patches = patches.copy()
+    x2 = np.sum(patches**2,axis=1)
     x2 = x2.reshape((len(x2),1))
-    centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
+#    print("x2 {}".format(x2[0:10]))
+    if(args):
+        centroids = args[0].copy()
+    else:
+        centroids = np.random.normal(size=(nb_centroids,patches.shape[1])) * 0.1## initialize the centroids at random
+#    print("centroids {}".format(centroids[0:5,0:5]))
     sbatch = 1000
-    
+#    input("Enter iterations...")
     for i in range(nb_iter):
+        patches = patches.copy()
         print("K-means: {} / {} iterations".format(i+1,nb_iter))
+        centroids = centroids.copy()
         c2 = 0.5 * np.sum(centroids**2,axis=1)
         c2 = c2.reshape((len(c2),1))
-        sum_k = np.zeros((nb_centroids,patches.shape[1]))## dictionnary of patches
+#        print("c2 {} ({})".format(c2[0:10],i))
+        sum_k = np.zeros((nb_centroids,patches.shape[1])).copy()## dictionnary of patches
         compt = np.zeros(nb_centroids)## number of samples per clusters
         compt = compt.reshape((len(compt),1))
         loss = 0
@@ -92,23 +102,36 @@ def Kmeans(patches,nb_centroids,nb_iter):
         for j in range(0,patches.shape[0],sbatch):
             last = min(j+sbatch,patches.shape[0])
             m = last - j
+#            print("last, m {}, {} ({})".format(last,m,i))
             diff = np.dot(centroids,patches[j:last,:].transpose()) - c2## difference of distances
             labels = np.argmax(diff,axis=0)## index of the centroid for each sample
+#            print("labels {} ({})".format(labels[0:10],i))
             max_value = np.max(diff,axis=0)## maximum value for each sample
             max_value = max_value.reshape((len(max_value),1))
             loss += np.sum(0.5*x2[j:last,:] - max_value)
-            S = np.zeros((m,nb_centroids))
+            ## Use sparse matrix
+            rows = np.arange(m)
+            data = np.ones(m)
+            S= csc_matrix((data,(rows,labels)),shape=(m,nb_centroids))
+            S_ = csc_matrix((data,(labels,rows)),shape=(nb_centroids,m))
+            #S = np.zeros((m,nb_centroids))
             ## Put the label of each sample in a sparse indicator matrix
             ## S(i,labels(i)) = 1, 0 elsewhere
-            for ind in range(m):
-                S[ind,labels[ind]] = 1    
-            sum_k += np.dot(S.transpose(),patches[j:last,:])## update the dictionnary
+#            for ind in range(m):
+#                S[ind,labels[ind]] = 1    
+            sum_k = sum_k + S_.dot(patches[j:last,:])## update the dictionnary
+#            print("sum_k {} ({})".format(sum_k[0:3,0:3],i))
             sumS = np.sum(S,axis=0)
-            sumS = sumS.reshape((len(sumS),1))
+            sumS = sumS.reshape((sumS.size,1))
             compt += sumS## update the number of samples per centroid in the batch
+#            print("compt {} ({})".format(compt[0:10],i))
+#            input("iteration {}, batch {}, keep going...".format(i,j))
             
         centroids = np.divide(sum_k,compt)## Normalise the dictionnary, will raise a RunTimeWarning if compt has zeros
-                                          ## this situation is dealt with in the two following lines  
+                                                 ## this situation is dealt with in the two following lines  
+        
+#        print("centroids {} ({})".format(centroids[0:5,0:5],i))
+#        input("#{} iteration end, keep going...".format(i))
         #badCentroids = np.where(compt == 0)## Find the indices of empty clusters
         ## Find indices for which compt[i] == 0
         indices = []
@@ -215,13 +238,13 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
 #        print("q1 {} (should be 1500)".format(q1.shape))
         q1 = q1.reshape((1,nb_centroids))
         # up right quadrant
-        q2 = np.sum(activation[quad_x:,0:quad_y,:],axis=0)
-        q2 = np.sum(q2,axis=0)
-        q2 = q2.reshape((1,nb_centroids))
-        # bottom left quadrant
-        q3 = np.sum(activation[0:quad_x,quad_y:,:],axis=0)
+        q3 = np.sum(activation[quad_x:,0:quad_y,:],axis=0)
         q3 = np.sum(q3,axis=0)
         q3 = q3.reshape((1,nb_centroids))
+        # bottom left quadrant
+        q2 = np.sum(activation[0:quad_x,quad_y:,:],axis=0)
+        q2 = np.sum(q2,axis=0)
+        q2 = q2.reshape((1,nb_centroids))
         # bottom right quadrant
         q4 = np.sum(activation[quad_x:,quad_y:,:],axis=0)
         q4 = np.sum(q4,axis=0)
@@ -241,7 +264,7 @@ def standard(X):
         X: multidimensional numpy array
     """
     mean = np.mean(X,axis=0)
-    var = np.var(X,axis=0)+0.01
+    var = np.var(X,axis=0,ddof=1)+0.01
     var = np.sqrt(var)
     X_standard = X - mean
     X_standard = np.divide(X_standard,var)

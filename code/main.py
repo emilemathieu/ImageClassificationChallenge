@@ -20,27 +20,66 @@ CHANEL_SIZE = IMAGE_SIZE * IMAGE_SIZE
 #X_final = np.concatenate((X_full,X_augmented),axis=0)
 X_train = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
 X_test = pd.read_csv('../data/Xte.csv', header=None).as_matrix()[:, 0:-1]
-X_matlab_features = pd.read_csv('../data/X_features_kmeans.csv', header=None).as_matrix()
+#X_matlab_features = pd.read_csv('../data/X_features_kmeans.csv', header=None).as_matrix()
 
 Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 #Y_augmented = pd.read_csv('../data/augmented_Y.csv').as_matrix()[:,1]
 #Y_final = np.concatenate((Y_full, Y_augmented),axis=0)
 
 #%% K-means feature learning
-rfSize = 16
-nb_patches = 100000
-nb_centroids = 100
+rfSize = 6
+nb_patches = 24000
+nb_centroids = 96
 nb_iter = 50
 whitening = True
 dim = [32,32,3]
 stride = 1
 eps = 10
-eps_zca = 0.01
-X_features = feature_extract.FeatureLearning(X_train,X_test,rfSize,nb_patches,nb_centroids,nb_iter,whitening,dim,stride,eps,eps_zca)
+eps_zca = 0.1
+#%%
+from kflearn import tools
+X_k = X_train + abs(np.min(X_train))
+X_k = X_k * (255 / np.max(X_k))
+X_k = np.round(X_k)
+#%%
+#patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
+#%%
+patches =  pd.read_csv('../data/patches1.csv', header=None).as_matrix()
+patches = patches[0:nb_patches,:]
+#%% Patches pre processing
+patches = tools.pre_process(patches,eps)
+#%% Patches whitening
+patches,M,P = tools.whiten(patches,eps_zca)
+#%% run k means
+#patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
+#patches = patches[0:nb_patches,:]
+#centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
+#%%
+centroids = tools.Kmeans(patches,nb_centroids,50)
+#np.savetxt('../data/centroids_python.csv',centroids)
+#%%
+#centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()
+#%% Feature extraction
+#M = pd.read_csv('../data/M.csv',header=None).as_matrix()
+#M = M.transpose()
+#P = pd.read_csv('../data/P.csv',header=None).as_matrix()
+#%%
+X_feat = tools.extract_features(X_k,centroids,rfSize,dim,stride,eps,M,P)
+#%% Standardize data
+#X_feat_matlab = pd.read_csv('../data/trainXC.csv',header=None).as_matrix()
+#%%
+XCmean = np.mean(X_feat,axis=0)
+XCvar = np.var(X_feat,axis=0)+0.01
+XCvar = np.sqrt(XCvar)
+X_feat_s = tools.standard(X_feat)
+#np.savetxt('../data/features_python.csv',X_feat_s,delimiter=',')
+#np.savetxt('../data/XCmean.csv',XCmean,delimiter=',')
+#np.savetxt('../data/XCvar.csv',XCvar,delimiter=',')
+#X_feat_matlab_s = pd.read_csv('../data/X_features_kmeans.csv',header=None).as_matrix()
 
 
 #%%
-X_multi = X_features
+X_multi = X_feat_s
 # X_multi = X_cnn_features
 #X_multi = rgb_to_greyscale(X_full)
 Y_multi = Y_full
@@ -55,9 +94,9 @@ from mllib import svm
 from importlib import reload
 
 classifiers = {
-        'sklearn': SVC(kernel='linear', degree=2, C=1.0),
+        'sklearn': SVC(kernel='linear', degree=2, C=10.),
 #        'sklearn': LinearSVC(),
-        'SMO OVO': svm.multiclass_ovo(C=1.0, kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000),
+        'SMO OVO': svm.multiclass_ovo(C=10., kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000),
                }
 
 #%% Assess classifiers
