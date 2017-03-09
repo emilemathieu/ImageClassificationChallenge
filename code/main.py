@@ -53,19 +53,20 @@ X_k = X_train + abs(np.min(X_train))
 X_k = X_k * (255 / np.max(X_k))
 X_k = np.round(X_k)
 #%%
-patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
+#patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
 #%%
-#patches =  pd.read_csv('../data/patches.csv', header=None).as_matrix()
+patches =  pd.read_csv('../data/patches1.csv', header=None).as_matrix()
+patches = patches[0:nb_patches,:]
 #%% Patches pre processing
 patches = tools.pre_process(patches,eps)
 #%% Patches whitening
 patches,M,P = tools.whiten(patches,eps_zca)
 #%% run k means
-patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
-patches = patches[0:nb_patches,:]
+#patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
+#patches = patches[0:nb_patches,:]
 #centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
 #%%
-centroids = tools.Kmeans(patches,nb_centroids,50)#,centroids)
+centroids = tools.Kmeans(patches,nb_centroids,50)
 #np.savetxt('../data/centroids_python.csv',centroids)
 #%%
 #centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()

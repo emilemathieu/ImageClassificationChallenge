@@ -13,7 +13,7 @@ rfSize = 6;
 numCentroids=1600/5/10*3; % TO BE TUNED
 whitening=true;
 %numPatches = 10000; % ORIGINAL PAPER VALUE
-numPatches = 24000;%/5/10*3; % TO BE TUNED
+numPatches = 400000;%/5/10*3; % TO BE TUNED
 CIFAR_DIM=[32 32 3];
 
 %%
@@ -59,7 +59,7 @@ for i=1:numPatches
   patches(i,:) = patch(:)';
 end
 % normalize for contrast
-csvwrite('../../../data/patches.csv',patches);
+csvwrite('../../../data/patches1.csv',patches);
 patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
 
 % whiten

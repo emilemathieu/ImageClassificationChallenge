@@ -264,7 +264,7 @@ def standard(X):
         X: multidimensional numpy array
     """
     mean = np.mean(X,axis=0)
-    var = np.var(X,axis=0)+0.01
+    var = np.var(X,axis=0,ddof=1)+0.01
     var = np.sqrt(var)
     X_standard = X - mean
     X_standard = np.divide(X_standard,var)
