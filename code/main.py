@@ -28,8 +28,8 @@ Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 
 #%% K-means feature learning
 rfSize = 8
-nb_patches = 150000
-nb_centroids = 2500
+nb_patches = 500000
+nb_centroids = 5000
 nb_iter = 50
 whitening = True
 dim = [32,32,3]
@@ -38,13 +38,15 @@ eps = 10
 eps_zca = 0.1
 #%%
 from kflearn import tools
-X_k = X_train + abs(np.min(X_train))
+#X_k = X_train
+X_k = np.concatenate((X_train,X_test),axis=0)
+X_k = X_k + abs(np.min(X_k))
 X_k = X_k * (255 / np.max(X_k))
 X_k = np.round(X_k)
 #%%
 #patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
 #%%
-patches =  pd.read_csv('../data/patches{}_2.csv'.format(rfSize), header=None).as_matrix()
+patches =  pd.read_csv('../data/patches_eval2.csv'.format(rfSize), header=None).as_matrix()
 patches = patches[0:nb_patches,:]
 #%% Patches pre processing
 patches = tools.pre_process(patches,eps)
@@ -55,7 +57,7 @@ patches,M,P = tools.whiten(patches,eps_zca)
 #patches = patches[0:nb_patches,:]
 #centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
 #%%
-centroids = tools.Kmeans(patches,nb_centroids,50)
+centroids = tools.Kmeans(patches,nb_centroids,nb_iter)
 #np.savetxt('../data/centroids_python.csv',centroids)
 #%%
 #centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()
@@ -68,10 +70,14 @@ X_feat = tools.extract_features(X_k,centroids,rfSize,dim,stride,eps,M,P)
 #%% Standardize data
 #X_feat_matlab = pd.read_csv('../data/trainXC.csv',header=None).as_matrix()
 #%%
-XCmean = np.mean(X_feat,axis=0)
-XCvar = np.var(X_feat,axis=0)+0.01
-XCvar = np.sqrt(XCvar)
+#XCmean = np.mean(X_feat,axis=0)
+#XCvar = np.var(X_feat,axis=0)+0.01
+#XCvar = np.sqrt(XCvar)
 X_feat_s = tools.standard(X_feat)
+X_feat_train = X_feat_s[0:5000,:]
+X_feat_test = X_feat_s[5000:,:]
+np.savetxt('../data/kmeans/Xtr_features_kmeans.csv',X_feat_train,delimiter=',')
+np.savetxt('../data/kmeans/Xte_features_kmeans.csv',X_feat_test,delimiter=',')
 #np.savetxt('../data/features_python.csv',X_feat_s,delimiter=',')
 #np.savetxt('../data/XCmean.csv',XCmean,delimiter=',')
 #np.savetxt('../data/XCvar.csv',XCvar,delimiter=',')

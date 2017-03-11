@@ -27,8 +27,8 @@ def extract_random_patches(X,nb_patches,rfSize,dim):
         if(i % 10000 == 0):
             print("Patch extraction: {} / {}".format(i,nb_patches))
         # Draw two random integers
-        row = random.randint(0,dim[0] - rfSize)
-        col = random.randint(0,dim[1] - rfSize)
+        row = random.randint(0,dim[0] - rfSize + 1)
+        col = random.randint(0,dim[1] - rfSize + 1)
         # Crop random patch
         image = np.reshape(X[im_no,:],tuple(dim),'F')
         image = X[im_no,:].reshape(dim[2], dim[0], dim[1])
@@ -160,6 +160,7 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
         *args: optional arguments for whitening
     """
     ## Check number of inputs
+    print("Max pooling")
     nb_centroids = centroids.shape[0]
     nb_samples = X.shape[0]
     Features = np.zeros((nb_samples, 4*nb_centroids))
@@ -200,23 +201,18 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
         n_centroids = np.sum(centroids**2,axis=1)
         n_centroids = n_centroids.reshape((1,len(n_centroids)))
         CvsP = np.dot(patches,centroids.transpose())
-#        print("npatches {} (should be 729)".format(n_patches.shape))
-#        print("ncentroids {} (should be 1500)".format(n_centroids.shape))
-#        print("CvsP {} (should be 729*1500)".format(CvsP.shape))
         distance = -2*CvsP+n_patches
         distance = n_centroids + distance
         distance = np.sqrt(distance)## z in the article
-#        print("Distance {} (should be 729 * 1500)".format(distance.shape))
-#        min_dist = np.min(distance,axis=0)
-#        labels = np.argmin(distance,axis=0)
         mu = np.mean(distance,axis=1)## average distance to centroids for each patch
-#        print("mu {} (should be 729)".format(mu.shape))
         mu = mu.reshape((len(mu),1))
         activation = -(distance - mu)
         activation[activation <= 0] = 0
-#        print("Activation {} (should be 729*1600)".format(activation.shape))
-#        print("Activation {}".format(activation))
-#        input("Keep going...")
+#        activation = 1 / (1+np.exp(activation))
+        #print("Activation with alpha")
+#        activation = np.dot(centroids,patches.transpose()) - 0.5
+#        activation[activation <= 0] = 0
+        
         
         
         ## Reshape activation
@@ -234,21 +230,29 @@ def extract_features(X,centroids,rfSize,dim,stride,eps,*args):
         quad_y = round(cols / 2)
         # up left quadrant
 #        print("quadrant {}".format(activation[0:quad_x,0:quad_y,:].shape))
-        q1 = np.sum(activation[0:quad_x,0:quad_y,:],axis=0)
-        q1 = np.sum(q1,axis=0)
+        q1 = np.max(activation[0:quad_x,0:quad_y,:],axis=1)
+        q1 = np.max(q1,axis=0)
+#        q1 = np.sum(activation[0:quad_x,0:quad_y,:],axis=0)
+#        q1 = np.sum(q1,axis=0)
 #        print("q1 {} (should be 1500)".format(q1.shape))
         q1 = q1.reshape((1,nb_centroids))
         # up right quadrant
-        q3 = np.sum(activation[quad_x:,0:quad_y,:],axis=0)
-        q3 = np.sum(q3,axis=0)
+        q3 = np.max(activation[quad_x:,0:quad_y,:],axis=1)
+        q3 = np.max(q3,axis=0)
+#        q3 = np.sum(activation[quad_x:,0:quad_y,:],axis=0)
+#        q3 = np.sum(q3,axis=0)
         q3 = q3.reshape((1,nb_centroids))
         # bottom left quadrant
-        q2 = np.sum(activation[0:quad_x,quad_y:,:],axis=0)
-        q2 = np.sum(q2,axis=0)
+        q2 = np.max(activation[0:quad_x,quad_y:,:],axis=1)
+        q2 = np.max(q2,axis=0)
+#        q2 = np.sum(activation[0:quad_x,quad_y:,:],axis=0)
+#        q2 = np.sum(q2,axis=0)
         q2 = q2.reshape((1,nb_centroids))
         # bottom right quadrant
-        q4 = np.sum(activation[quad_x:,quad_y:,:],axis=0)
-        q4 = np.sum(q4,axis=0)
+        q4 = np.max(activation[quad_x:,quad_y:,:],axis=1)
+        q4 = np.max(q4,axis=0)
+#        q4 = np.sum(activation[quad_x:,quad_y:,:],axis=0)
+#        q4 = np.sum(q4,axis=0)
         q4 = q4.reshape((1,nb_centroids))
         ## Get feature vector from max pooling
         Q = np.concatenate((q1,q2,q3,q4),axis=1)

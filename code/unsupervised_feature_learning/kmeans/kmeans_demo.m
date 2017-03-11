@@ -8,28 +8,33 @@
 clear;clc;
 %% Configuration
 addpath minFunc;
-rfSize = 6;
+rfSize = 8;
 %numCentroids=1600; % ORIGINAL PAPER VALUE
 numCentroids=1600/5/10*3; % TO BE TUNED
 whitening=true;
 %numPatches = 10000; % ORIGINAL PAPER VALUE
-numPatches = 400000;%/5/10*3; % TO BE TUNED
+numPatches = 500000;%/5/10*3; % TO BE TUNED
 CIFAR_DIM=[32 32 3];
 
 %%
 X = csvread('../../../data/Xtr.csv');
+X_test = csvread('../../../data/Xte.csv');
 X = double(X(:,1:end-1));
+X_test = double(X_test(:,1:end-1));
 % RESCALE DATA
 X = X + abs(min(X(:)));
 X = X * (255 / max(X(:)));
 X = round(X);
+X_test = X_test + abs(min(X_test(:)));
+X_test = X_test * (255 / max(X_test(:)));
+X_test = round(X_test);
 %% COPY "Ytr.csv" FILE, DELETE HEADER AND RENAME IT "Ytr_wo_header.csv"
 Y = csvread('../../../data/Ytr_wo_header.csv');
 Y = double(Y(:,2) + 1); %% LABELS TO BE IN (1,10); NO IDEA WHY
 
 %% Load CIFAR training data
 fprintf('Loading training data...\n');
-trainX = X;%(1:3000,:);
+trainX = [X;X_test];%(1:3000,:);
 trainY = Y;%(1:3000);
 %%
 % testY = Y(3001:end);
@@ -59,7 +64,7 @@ for i=1:numPatches
   patches(i,:) = patch(:)';
 end
 % normalize for contrast
-csvwrite('../../../data/patches6_2.csv',patches);
+csvwrite('../../../data/patches_eval2.csv',patches);
 patches = bsxfun(@rdivide, bsxfun(@minus, patches, mean(patches,2)), sqrt(var(patches,[],2)+10));
 
 % whiten
