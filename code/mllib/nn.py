@@ -5,7 +5,7 @@ Created on Fri Feb 17 10:29:39 2017
 
 @author: EmileMathieu
 """
-from .im2col import im2col_indices, col2im_indices
+#from .im2col import im2col_indices, col2im_indices
 import numpy as np
 import pyximport; pyximport.install(setup_args={'include_dirs': np.get_include()})
 try:
