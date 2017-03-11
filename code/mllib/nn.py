@@ -5,13 +5,9 @@ Created on Fri Feb 17 10:29:39 2017
 
 @author: EmileMathieu
 """
-#from .im2col import im2col_indices, col2im_indices
 import numpy as np
 import pyximport; pyximport.install(setup_args={'include_dirs': np.get_include()})
-try:
-    from .im2col_cyt import col2im_cython, im2col_cython
-except ImportError:
-    pass
+from .im2col_cyt import col2im_cython, im2col_cython
 
 class Module(object):
     """ Base class for neural network's layers
@@ -94,7 +90,7 @@ class MaxPool2d(Module):
 
          # Im2Col approach http://wiseodd.github.io/techblog/2016/07/18/convnet-maxpool-layer/
          X_reshaped = X.reshape(N*d, 1, h, w)
-         X_col = im2col_indices(X_reshaped, self._kernel_size, self._kernel_size, padding=0, stride=self._stride)
+         X_col = im2col_cython(X_reshaped, self._kernel_size, self._kernel_size, padding=0, stride=self._stride)
          max_idx = np.argmax(X_col, axis=0)
          self._max_idx = max_idx
          res = X_col[max_idx, range(max_idx.size)]
@@ -102,36 +98,14 @@ class MaxPool2d(Module):
          res = res.transpose(2, 3, 0, 1)
          return res
 
-#         N, C, H, W = X.shape
-#         pool_height, pool_width = self._kernel_size, self._kernel_size
-#         stride = self._stride
-#         assert pool_height == pool_width == stride, 'Invalid pool params'
-#         assert H % pool_height == 0
-#         assert W % pool_height == 0
-#         x_reshaped = X.reshape(N, C, int(H / pool_height), pool_height,
-#                                 int(W / pool_width), pool_width)
-#         out = x_reshaped.max(axis=3).max(axis=4)
-#         self.cache = (X, x_reshaped, out)
-#         return out
-
     def backward(self, output_grad):
         N,d,h,w = self._X_shape
         kernel_area = self._kernel_size*self._kernel_size
         dX_col = np.zeros((kernel_area, int(N*d*h*w/kernel_area)))
         dout_flat = output_grad.transpose(2, 3, 0, 1).ravel()
         dX_col[self._max_idx, range(self._max_idx.size)] = dout_flat
-        dX = col2im_indices(dX_col, (N * d, 1, h, w), self._kernel_size, self._kernel_size, padding=0, stride=self._stride)
+        dX = col2im_cython(dX_col, N * d, 1, h, w, self._kernel_size, self._kernel_size, padding=0, stride=self._stride)
         return dX.reshape(self._X_shape)
-#         dout = output_grad
-#         x, x_reshaped, out = self.cache
-#         dx_reshaped = np.zeros_like(x_reshaped)
-#         out_newaxis = out[:, :, :, np.newaxis, :, np.newaxis]
-#         mask = (x_reshaped == out_newaxis)
-#         dout_newaxis = dout[:, :, :, np.newaxis, :, np.newaxis]
-#         dout_broadcast, _ = np.broadcast_arrays(dout_newaxis, dx_reshaped)
-#         dx_reshaped[mask] = dout_broadcast[mask]
-#         dx_reshaped /= np.sum(mask, axis=(3, 5), keepdims=True)
-#         return dx_reshaped.reshape(x.shape)
 
 class Conv2d(Module):
     """ Applies a 2D convolution over an input signal composed of several input planes.
