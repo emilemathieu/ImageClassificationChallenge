@@ -23,3 +23,13 @@ from .nn import (
 from .loss import (
     CrossEntropyLoss
 )
+
+from .kflearn import (
+    Kmeans,
+    extract_features
+    )
+
+from .tools import (
+    whiten,
+    standard
+    )
