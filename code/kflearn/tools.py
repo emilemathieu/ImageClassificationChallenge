@@ -30,7 +30,6 @@ def extract_random_patches(X,nb_patches,rfSize,dim):
         row = random.randint(0,dim[0] - rfSize + 1)
         col = random.randint(0,dim[1] - rfSize + 1)
         # Crop random patch
-        image = np.reshape(X[im_no,:],tuple(dim),'F')
         image = X[im_no,:].reshape(dim[2], dim[0], dim[1])
         patch = image[:,row:row+rfSize, col:col+rfSize]
         patches[i,:] = patch.flatten()
