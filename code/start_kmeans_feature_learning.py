@@ -8,7 +8,8 @@ Created on Thu Feb 16 15:50:55 2017
 import pandas as pd
 import numpy as np
 from mllib import svm
-from kflearn import tools
+from mllib import tools
+from mllib import kflearn
 
 X_train = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
 X_test = pd.read_csv('../data/Xte.csv', header=None).as_matrix()[:, 0:-1]
@@ -35,17 +36,17 @@ X_test = np.round(X_test)
 
 X_k = np.concatenate((X_train,X_test),axis=0)
 
-patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
+patches = kflearn.extract_random_patches(X_k,nb_patches,rfSize,dim)
 patches = patches[0:nb_patches,:]
-patches = tools.pre_process(patches,eps)
+patches = kflearn.pre_process(patches,eps)
 patches,M,P = tools.whiten(patches,eps_zca)
 
-centroids = tools.Kmeans(patches,nb_centroids,nb_iter)
+centroids = kflearn.Kmeans(patches,nb_centroids,nb_iter)
 
-X_train = tools.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)
+X_train = kflearn.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)
 X_train = tools.standard(X_train)
 
-X_test = tools.extract_features(X_test,centroids,rfSize,dim,stride,eps,M,P)
+X_test = kflearn.extract_features(X_test,centroids,rfSize,dim,stride,eps,M,P)
 X_test = tools.standard(X_test)
 
 #################################
