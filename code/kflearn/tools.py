@@ -31,8 +31,9 @@ def extract_random_patches(X,nb_patches,rfSize,dim):
         col = random.randint(0,dim[1] - rfSize)
         # Crop random patch
         image = np.reshape(X[im_no,:],tuple(dim),'F')
-        patch = image[row:row+rfSize, col:col+rfSize,:]
-        patches[i,:] = patch.reshape((1,N))
+        image = X[im_no,:].reshape(dim[2], dim[0], dim[1])
+        patch = image[:,row:row+rfSize, col:col+rfSize]
+        patches[i,:] = patch.flatten()
     return patches
     
 def pre_process(patches,eps):
