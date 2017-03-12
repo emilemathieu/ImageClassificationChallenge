@@ -24,11 +24,11 @@ class MyNet(nn.Module):
         self.depth_conv2 = depth_conv2
         self.features = nn.Sequential(
             nn.Conv2d(3, 6, 5),
-            nn.BatchNorm2d(6),
+            nn.BatchNorm2d(6,momentum=0),
             nn.ReLU(),
             nn.MaxPool2d(2,2),
             nn.Conv2d(6, depth_conv2, 5),
-            nn.BatchNorm2d(depth_conv2),
+            nn.BatchNorm2d(depth_conv2,momentum=0),
             nn.ReLU(),
             nn.MaxPool2d(2,2)
         )
@@ -60,8 +60,9 @@ class MyNet(nn.Module):
     def parameters(self):
         return self.features.parameters() + self.classifier.parameters()
 
+print('CNN training')
 mynet = MyNet()
-optimizer = optim.Adam(lr=0.001)
+optimizer = optim.RMSprop(lr=0.001,lambda_reg=5.0)
 criterion = loss.CrossEntropyLoss()
 
 N = X_train.shape[0]
@@ -70,7 +71,7 @@ nb_batchs = int(N / batch_size)
 
 start_global = timeit.default_timer()
 optimizer._reset_state()
-for epoch in range(0, 5, 1): # loop over the dataset multiple times
+for epoch in range(0, 30 , 1): # loop over the dataset multiple times
     running_loss = 0.0
     start = timeit.default_timer()
     suffle = np.random.permutation(N)
@@ -96,6 +97,7 @@ for epoch in range(0, 5, 1): # loop over the dataset multiple times
             running_loss = 0.0
             start = timeit.default_timer()
 
+print('Training dataset feature extraction')
 Xout = X_train
 N = Xout.shape[0]
 X_features = np.empty((N, 400))
@@ -107,6 +109,7 @@ for i in range(nb_batchs):
     X_features[i*batch_size:(i+1)*batch_size, :] = outputs.reshape(-1,16*5*5)
 X_train = X_features.copy()
 
+print('Test dataset feature extraction')
 X_e = X_test
 N = X_e.shape[0]
 X_features = np.empty((N, 400))
@@ -121,15 +124,17 @@ X_test = X_features.copy()
 #################################
 ###      CLASSIFICATION       ###
 #################################
-
-clf = svm.multiclass_ovo(C=10., kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000)
+from sklearn.svm import SVC
+clf = SVC(kernel='rbf', gamma=1/50, C=10.)
+#clf = svm.multiclass_ovo(C=1000., kernel=svm.Kernel.rbf(gamma=1/50), tol=1.0, max_iter=5000)
 
 #################################
 ###        ///////////        ###
 #################################
-
+print('SVM training')
 clf.fit(X_train, Y_train)
 
+print('SVM prediction')
 prediction = clf.predict(X_test)
 
 prediction = pd.DataFrame(prediction)
