@@ -70,6 +70,7 @@ class ReLU(Module):
 
 class MaxPool2d(Module):
     """ Applies a 2D max pooling over an input signal composed of several input planes.
+    Im2Col approach http://wiseodd.github.io/techblog/2016/07/18/convnet-maxpool-layer/
     Parameters
     ----------
     kernel_size : int
@@ -77,9 +78,9 @@ class MaxPool2d(Module):
     stride : int
         The stride of the window
     """
-    def __init__(self,kernel_size,stride=2):
-         # TODO: add padding ?
+    def __init__(self, kernel_size, stride=2, padding=0):
          self._kernel_size = kernel_size
+         self._padding = padding
          self._stride = stride
 
     def forward(self, X):
@@ -88,9 +89,8 @@ class MaxPool2d(Module):
          h_out = int((h - self._kernel_size)/self._stride + 1)
          w_out = int((w - self._kernel_size)/self._stride + 1)
 
-         # Im2Col approach http://wiseodd.github.io/techblog/2016/07/18/convnet-maxpool-layer/
          X_reshaped = X.reshape(N*d, 1, h, w)
-         X_col = im2col_cython(X_reshaped, self._kernel_size, self._kernel_size, padding=0, stride=self._stride)
+         X_col = im2col_cython(X_reshaped, self._kernel_size, self._kernel_size, padding=self._padding, stride=self._stride)
          max_idx = np.argmax(X_col, axis=0)
          self._max_idx = max_idx
          res = X_col[max_idx, range(max_idx.size)]
@@ -315,9 +315,3 @@ class Sequential(Module):
                 parameters.append(module._weight)
                 parameters.append(module._bias)
         return parameters
-
-class Variable(object):
-    def __init__(self, data=None):
-        raise NotImplementedError()
-        self.data = data
-        self.grad = None
