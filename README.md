@@ -1,7 +1,9 @@
-# Kernel Challenge
-Emile Mathieu & Thomas Pesneau
+# Kernel Image Classification Challenge
+By Emile Mathieu & Thomas Pesneau
 
-Numpy, pandas adn scipy are required
+Code for the Challenge: https://inclass.kaggle.com/c/kernel-methods-for-machine-learning-data-challenge
+
+Numpy, pandas and scipy are required
 
 Files 'Xtr.csv', 'Xte.csv' and 'Ytr.csv' must be in the same folder as 'start_cnn.py' or 'start_kmeans.py'.
 Then run
