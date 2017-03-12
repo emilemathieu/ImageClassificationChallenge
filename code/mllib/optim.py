@@ -10,27 +10,20 @@ import numpy as np
 import math
 
 class Optimizer(object):
-    def __init__(self, parameters):
-        self._parameters = parameters   
+    def __init__(self, lambda_reg, batch):
         self._reset_state()
+        self.lambda_reg = lambda_reg
+        self.batch = batch
     def __call__(self, layer_id, weight_type, objective, grad):
         raise NotImplementedError()
     def zero_grad(self):
         self._reset_state()
-        #for parameter in self._parameters:
-        #print(parameter)
-        #set gradient of parameter to zero
     def _reset_state(self):
         self.state = {}
 
-#    def step(self):
-#        for parameter in self._parameters:
-#            print(parameter)
-#            # step in direction of parameter's gradient
-
 class SGD(Optimizer):
-    def __init__(self, parameters=[], lr=0.1, momentum=0):
-        super().__init__(parameters)
+    def __init__(self, lr=0.1, momentum=0, lambda_reg=0, batch=16):
+        super().__init__(lambda_reg, batch)
         self.lr = lr
         self.momentum = momentum
         
@@ -63,8 +56,8 @@ class Adam(Optimizer):
             term for numerical stability
 
     """
-    def __init__(self,  parameters=[], lr=0.001, betas=[0.9, 0.999], eps=10e-8):
-        super().__init__(parameters)
+    def __init__(self, lr=0.001, betas=[0.9, 0.999], eps=10e-8, lambda_reg=0, batch=16):
+        super().__init__(lambda_reg, batch)
         self.lr = lr
         self.betas = betas
         self.eps = eps
@@ -104,16 +97,16 @@ class Adam(Optimizer):
         bias_correction2 = 1 - beta2 ** step
         step_size = self.lr * math.sqrt(bias_correction2) / bias_correction1
         ## Define new step
-        objective = objective - step_size / (np.sqrt(v_unbiased) + self.eps) * m_unbiased
+        objective = (1 - self.lambda_reg*step_size/self.batch) * objective - step_size / (np.sqrt(v_unbiased) + self.eps) * m_unbiased
         return objective
 
 class RMSprop(Optimizer):
-    def __init__(self,  parameters=[], lr=0.01, alpha=0.99, eps=10e-8):
-        super().__init__(parameters)
+    def __init__(self, lr=0.01, alpha=0.99, eps=10e-8, lambda_reg=0, batch=16):
+        super().__init__(lambda_reg, batch)
         self.lr = lr
         self.alpha = alpha
         self.eps = eps
-        
+
     def get_state(self, key, shape):
         if key in self.state:
             square_avg, step = self.state[key]
@@ -130,4 +123,4 @@ class RMSprop(Optimizer):
         self.state[key] = square_avg, step
         avg = np.sqrt(square_avg + self.eps)
 
-        return objective - self.lr * grad / avg
+        return (1 - self.lambda_reg*self.lr/self.batch) * objective - self.lr * grad / avg
