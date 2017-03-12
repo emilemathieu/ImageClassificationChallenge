@@ -46,11 +46,18 @@ patches,M,P = tools.whiten(patches,eps_zca)
 
 centroids = kflearn.Kmeans(patches,nb_centroids,nb_iter)
 
-X_train = kflearn.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)
-X_train = tools.standard(X_train)
+X_features = kflearn.extract_features(X_k,centroids,rfSize,dim,stride,eps,M,P)
+X_features_standard = tools.standard(X_features)
 
-X_test = kflearn.extract_features(X_test,centroids,rfSize,dim,stride,eps,M,P)
-X_test = tools.standard(X_test)
+X_train = X_features_standard[0:5000,:]
+
+X_test = X_features_standard[5000,:]
+
+# X_train = kflearn.extract_features(X_train,centroids,rfSize,dim,stride,eps,M,P)
+# X_train = tools.standard(X_train)
+
+# X_test = kflearn.extract_features(X_test,centroids,rfSize,dim,stride,eps,M,P)
+# X_test = tools.standard(X_test)
 
 #################################
 ###      CLASSIFICATION       ###
