@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from mllib import svm, tools, nn, optim, loss
 
 X = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1].astype(np.float32)
 y = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
@@ -41,7 +42,6 @@ def score(algo):
     return round(100*correct_train/total_train,2), round(100*correct_test/total_test,2)
 
 #%%
-from mllib import nn
 
 class MyNet(nn.Module):
     def __init__(self, depth_conv2=16):
@@ -92,22 +92,16 @@ class MyNet(nn.Module):
 
 #%%
 mynet = MyNet(16)
-scores = OrderedDict()
 #%% Train
 from importlib import reload 
-from mllib import optim, loss
-import timeit, pickle, json, os
-from collections import OrderedDict
-
-experience_name = '10__data_augmentation'
-directory_path = 'parameters/{}/'.format(experience_name)
-if not os.path.exists(directory_path):
-    os.makedirs(directory_path)
+import timeit
 
 #optimizer = optim.SGD(lr=0.001, momentum=0.9)
-optimizer = optim.Adam(lr=0.001)
-#optimizer = optim.RMSprop(lr=0.001)
+#optimizer = optim.Adam(lr=0.001)
+#optimizer = optim.RMSprop(lr=0.001,lambda_reg=0.5)
+optimizer = optim.RMSprop(lr=0.001)
 
+#criterion = loss.CrossEntropyLossL2(lambda_reg=0.5)
 criterion = loss.CrossEntropyLoss()
 
 N = X_train.shape[0]
@@ -116,7 +110,7 @@ nb_batchs = int(N / batch_size)
 
 start_global = timeit.default_timer()
 optimizer._reset_state()
-for epoch in range(0, 5, 1): # loop over the dataset multiple times
+for epoch in range(0, 15, 1): # loop over the dataset multiple times
     running_loss = 0.0
     start = timeit.default_timer()
     suffle = np.random.permutation(N)
@@ -131,12 +125,12 @@ for epoch in range(0, 5, 1): # loop over the dataset multiple times
         mynet.zero_grad()
         # forward + backward + optimize
         outputs = mynet(inputs)
-        loss = criterion(outputs, labels)
+        curr_loss = criterion(outputs, labels)#, mynet.parameters())
         grad = criterion.grad(outputs, labels)
         mynet.backward(grad)  
         mynet.step(optimizer)
         # print statistics
-        running_loss += loss
+        running_loss += curr_loss
         if i % 100 == 99: # print every 2000 mini-batches
             print('[{}, {}] - loss: {} | time: '.format(
                     epoch+1, i+1, round(running_loss / 100, 3)),
@@ -145,16 +139,12 @@ for epoch in range(0, 5, 1): # loop over the dataset multiple times
             start = timeit.default_timer()
     if (epoch + 1) % 1 == 0:
         score_train, score_test = score(mynet)
-        scores[epoch + 1] = (score_train, score_test)
         print('Accuracy -- Train: {} | Test: {}'.format(score_train, score_test))
 
-with open('{}/scores.json'.format(directory_path), 'w') as outfile:
-    json.dump(scores, outfile)
 print('Finished Training | {} seconds'.format(round(timeit.default_timer() - start_global, 2)))
 
 #%%
-Xout = Z.transpose(0, 3, 1, 2)
-Xout = Xout.reshape(-1, 3, 32 ,32)
+Xout = X_train
 N = Xout.shape[0]
 X_features = np.empty((N, 400))
 batch_size = 8
@@ -163,17 +153,51 @@ for i in range(nb_batchs):
     inputs = Xout[i*batch_size:(i+1)*batch_size,:]
     outputs = mynet.features(inputs)
     X_features[i*batch_size:(i+1)*batch_size, :] = outputs.reshape(-1,16*5*5)
-pd.DataFrame(X_features).to_csv('../data/cnn/Xtr_features_mycnn_10.csv',header=False, index=False)
-del Xout
-X_e = pd.read_csv('../data/Xte.csv', header=None).as_matrix()[:, 0:-1]
-X_e = X_e.reshape(-1, 3, 32 ,32)
-N = X_e.shape[0]
+X_train_cnn = X_features.copy()
+del Xout, X_features
+
+Xout = X_test
+N = Xout.shape[0]
 X_features = np.empty((N, 400))
 batch_size = 8
 nb_batchs = int(N / batch_size)
 for i in range(nb_batchs):
-    inputs = X_e[i*batch_size:(i+1)*batch_size,:]
+    inputs = Xout[i*batch_size:(i+1)*batch_size,:]
     outputs = mynet.features(inputs)
     X_features[i*batch_size:(i+1)*batch_size, :] = outputs.reshape(-1,16*5*5)
+X_test_cnn = X_features.copy()
+del Xout, X_features
 
-pd.DataFrame(X_features).to_csv('../data/cnn/Xte_features_mycnn_10.csv',header=False, index=False)
+#%%
+from sklearn.svm import SVC
+#clf = svm.multiclass_ovo(C=1000., kernel=svm.Kernel.rbf(gamma=1/50), tol=1.0, max_iter=5000)
+clf = SVC(kernel='rbf', gamma=1/50, C=10.)
+clf.fit(X_train_cnn, y_train)
+
+print(clf.score(X_test_cnn, y_test))
+
+#from sklearn.model_selection import train_test_split, KFold
+#
+#scores_train = {classifier_name: [] for classifier_name, classifier in classifiers.items()}
+#scores_test = {classifier_name: [] for classifier_name, classifier in classifiers.items()}
+#times = {classifier_name: [] for classifier_name, classifier in classifiers.items()}
+#
+##X_train, X_test, y_train, y_test = train_test_split(X_multi, Y_multi, test_size=0.33)
+#
+#for i, (train, test) in enumerate(KFold(n_splits=3, shuffle=True).split(range(len(Y_multi)))):
+#    X_train, X_test, y_train, y_test = X_multi[train], X_multi[test], Y_multi[train], Y_multi[test]
+#
+#    for classifier_name, classifier in classifiers.items():
+#        print("%s - fit" % classifier_name)
+#        start = timeit.default_timer()
+#        classifier.fit(X_train, y_train)
+#        print("%s - predict\n" % classifier_name)
+#        scores_train[classifier_name].append(classifier.score(X_train, y_train))
+#        scores_test[classifier_name].append(classifier.score(X_test, y_test))
+#        times[classifier_name].append(timeit.default_timer() - start)
+#
+#for classifier_name in classifiers:    
+#    print("\n%s -- score: training:%s & test:%s | time:%s" % 
+#          (classifier_name, np.mean(scores_train[classifier_name]), np.mean(scores_test[classifier_name]), round(np.mean(times[classifier_name]),2)))
+
+

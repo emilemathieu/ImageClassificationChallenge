@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os
-path = "C:\\Users\\Thomas\\Desktop\\MVA 2016-2017\\2eme semestre\\Kernel methods for Machine learning\\Project\\kernel_challenge\\code"
-os.chdir(path)
 import numpy as np
 import pandas as pd
 import datetime
-from kflearn import feature_extract
+from importlib import reload
 
 #%% Load dataset
 
@@ -28,81 +25,53 @@ Y_full = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
 
 #%% K-means feature learning
 rfSize = 8
-nb_patches = 500000
-nb_centroids = 5000
-nb_iter = 50
+nb_patches = 40000
+nb_centroids = 1000
+nb_iter = 15
 whitening = True
 dim = [32,32,3]
 stride = 1
 eps = 10
 eps_zca = 0.1
 #%%
-from kflearn import tools
-#X_k = X_train
-X_k = np.concatenate((X_train,X_test),axis=0)
+from mllib import tools
+from mllib import kflearn
+X_k = X_train
+#X_k = np.concatenate((X_train,X_test),axis=0)
 X_k = X_k + abs(np.min(X_k))
 X_k = X_k * (255 / np.max(X_k))
 X_k = np.round(X_k)
 #%%
-#patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
+patches = tools.extract_random_patches(X_k,nb_patches,rfSize,dim)
 #%%
-patches =  pd.read_csv('../data/patches_eval2.csv'.format(rfSize), header=None).as_matrix()
+#patches =  pd.read_csv('../data/patches_eval2.csv'.format(rfSize), header=None).as_matrix()
 patches = patches[0:nb_patches,:]
 #%% Patches pre processing
 patches = tools.pre_process(patches,eps)
-#%% Patches whitening
 patches,M,P = tools.whiten(patches,eps_zca)
 #%% run k means
-#patches = pd.read_csv('../data/MBpatches.csv', header=None).as_matrix()
-#patches = patches[0:nb_patches,:]
-#centroids = pd.read_csv('../data/centroids.csv',header=None).as_matrix()
-#%%
-centroids = tools.Kmeans(patches,nb_centroids,nb_iter)
-#np.savetxt('../data/centroids_python.csv',centroids)
-#%%
-#centroids = pd.read_csv('../data/centroids_learn.csv', header=None).as_matrix()
-#%% Feature extraction
-#M = pd.read_csv('../data/M.csv',header=None).as_matrix()
-#M = M.transpose()
-#P = pd.read_csv('../data/P.csv',header=None).as_matrix()
-#%%
-X_feat = tools.extract_features(X_k,centroids,rfSize,dim,stride,eps,M,P)
-#%% Standardize data
-#X_feat_matlab = pd.read_csv('../data/trainXC.csv',header=None).as_matrix()
-#%%
-#XCmean = np.mean(X_feat,axis=0)
-#XCvar = np.var(X_feat,axis=0)+0.01
-#XCvar = np.sqrt(XCvar)
-X_feat_s = tools.standard(X_feat)
-X_feat_train = X_feat_s[0:5000,:]
-X_feat_test = X_feat_s[5000:,:]
-np.savetxt('../data/kmeans/Xtr_features_kmeans.csv',X_feat_train,delimiter=',')
-np.savetxt('../data/kmeans/Xte_features_kmeans.csv',X_feat_test,delimiter=',')
-#np.savetxt('../data/features_python.csv',X_feat_s,delimiter=',')
-#np.savetxt('../data/XCmean.csv',XCmean,delimiter=',')
-#np.savetxt('../data/XCvar.csv',XCvar,delimiter=',')
-#X_feat_matlab_s = pd.read_csv('../data/X_features_kmeans.csv',header=None).as_matrix()
 
+centroids = kflearn.Kmeans(patches,nb_centroids,nb_iter)
+
+#%%
+#X_feat_2 = tools.extract_features(X_k[0:100],centroids,rfSize,dim,stride,eps,M,P)
+#%%
+X_feat = kflearn.extract_features(X_k,centroids,rfSize,dim,stride,eps,M,P)
+X_feat_s = tools.standard(X_feat)
 
 #%%
 X_multi = X_feat_s
-# X_multi = X_cnn_features
-#X_multi = rgb_to_greyscale(X_full)
 Y_multi = Y_full
 N = len(Y_multi)
-#X_histo = sh.simple_histogram(X_full)
-#Y_histo = Y_full
 
 #%% Select classifiers
 
-from sklearn.svm import SVC,LinearSVC
+from sklearn.svm import SVC
 from mllib import svm
-from importlib import reload
 
 classifiers = {
         'sklearn': SVC(kernel='linear', degree=2, C=10.),
-#        'sklearn': LinearSVC(),
-        'SMO OVO': svm.multiclass_ovo(C=10., kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000),
+        #'SMO OVO': svm.multiclass_ovo(C=10., kernel=svm.Kernel.linear(), tol=1.0, max_iter=5000),
                }
 
 #%% Assess classifiers
