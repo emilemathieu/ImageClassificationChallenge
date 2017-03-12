@@ -1,25 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Feb 16 15:50:55 2017
 
-@author: EmileMathieu
-"""
+import sys
 import pandas as pd
 import numpy as np
-from mllib import svm
-from mllib import tools
-from mllib import kflearn
+from mllib import svm, tools, kflearn
 
-X_train = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1]
-X_test = pd.read_csv('../data/Xte.csv', header=None).as_matrix()[:, 0:-1]
+best_perf = len(sys.argv) > 1 and sys.argv[1] == 'best'
+
+X_train = pd.read_csv('Xtr.csv', header=None).as_matrix()[:, 0:-1]
+X_test = pd.read_csv('Xte.csv', header=None).as_matrix()[:, 0:-1]
 
 #################################
 ###      FEATURE LEARNING     ###
 #################################
 rfSize = 8
-nb_patches = 40000
-nb_centroids = 1000
+if best_perf:
+    print('You asked for best performance, warning it may take a while...')
+    nb_patches = 400000
+    nb_centroids = 4000
+else:
+    nb_patches = 40000 
+    nb_centroids = 1000
+
 nb_iter = 15
 whitening = True
 dim = [32,32,3]
@@ -59,7 +62,7 @@ clf = svm.multiclass_ovo(C=10., kernel=svm.Kernel.linear(), tol=1.0, max_iter=50
 ###        ///////////        ###
 #################################
 
-Y_train = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
+Y_train = pd.read_csv('Ytr.csv').as_matrix()[:,1]
 
 clf.fit(X_train, Y_train)
 
@@ -71,4 +74,4 @@ prediction.columns = ['Id', 'Prediction']
 prediction['Id'] = prediction['Id'] + 1
 prediction['Prediction'] = prediction['Prediction'].astype(int)
 
-prediction.to_csv('../data/Yte.csv',sep=',', header=True, index=False)
+prediction.to_csv('Yte.csv',sep=',', header=True, index=False)

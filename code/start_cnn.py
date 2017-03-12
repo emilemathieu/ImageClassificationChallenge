@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Feb 16 15:50:55 2017
 
-@author: EmileMathieu
-"""
-import timeit
+import sys, timeit
 import pandas as pd
 import numpy as np
 from mllib import svm, tools, nn, optim, loss
 
-X_train = pd.read_csv('../data/Xtr.csv', header=None).as_matrix()[:, 0:-1].reshape(-1, 3, 32, 32)
-X_test = pd.read_csv('../data/Xte.csv', header=None).as_matrix()[:, 0:-1].reshape(-1, 3, 32 ,32)
-Y_train = pd.read_csv('../data/Ytr.csv').as_matrix()[:,1]
+X_train = pd.read_csv('Xtr.csv', header=None).as_matrix()[:, 0:-1].reshape(-1, 3, 32, 32)
+X_test = pd.read_csv('Xte.csv', header=None).as_matrix()[:, 0:-1].reshape(-1, 3, 32 ,32)
+Y_train = pd.read_csv('Ytr.csv').as_matrix()[:,1]
 
 #################################
 ###      FEATURE LEARNING     ###
@@ -24,11 +20,11 @@ class MyNet(nn.Module):
         self.depth_conv2 = depth_conv2
         self.features = nn.Sequential(
             nn.Conv2d(3, 6, 5),
-            nn.BatchNorm2d(6,momentum=0),
+            nn.BatchNorm2d(6),
             nn.ReLU(),
             nn.MaxPool2d(2,2),
             nn.Conv2d(6, depth_conv2, 5),
-            nn.BatchNorm2d(depth_conv2,momentum=0),
+            nn.BatchNorm2d(depth_conv2),
             nn.ReLU(),
             nn.MaxPool2d(2,2)
         )
@@ -68,10 +64,11 @@ criterion = loss.CrossEntropyLoss()
 N = X_train.shape[0]
 batch_size = 16
 nb_batchs = int(N / batch_size)
+nb_iterations = 20
 
 start_global = timeit.default_timer()
 optimizer._reset_state()
-for epoch in range(0, 30 , 1): # loop over the dataset multiple times
+for epoch in range(0, nb_iterations, 1): # loop over the dataset multiple times
     running_loss = 0.0
     start = timeit.default_timer()
     suffle = np.random.permutation(N)
@@ -124,9 +121,7 @@ X_test = X_features.copy()
 #################################
 ###      CLASSIFICATION       ###
 #################################
-from sklearn.svm import SVC
-clf = SVC(kernel='rbf', gamma=1/50, C=10.)
-#clf = svm.multiclass_ovo(C=1000., kernel=svm.Kernel.rbf(gamma=1/50), tol=1.0, max_iter=5000)
+clf = svm.multiclass_ovo(C=1000., kernel=svm.Kernel.rbf(gamma=1/50), tol=1.0, max_iter=5000)
 
 #################################
 ###        ///////////        ###
@@ -143,4 +138,4 @@ prediction.columns = ['Id', 'Prediction']
 prediction['Id'] = prediction['Id'] + 1
 prediction['Prediction'] = prediction['Prediction'].astype(int)
 
-prediction.to_csv('../data/Yte.csv',sep=',', header=True, index=False)
+prediction.to_csv('Yte.csv',sep=',', header=True, index=False)
